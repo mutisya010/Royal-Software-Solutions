@@ -10,6 +10,8 @@ import QuotationsListPage from './sales/QuotationsListPage';
 import ActivitiesFollowupsPage from './sales/ActivitiesFollowupsPage';
 import CommunicationHistoryPage from './sales/CommunicationHistoryPage';
 import LeadsDirectoryPage from './sales/LeadsDirectoryPage';
+import PipelineBoardPage from './sales/PipelineBoardPage';
+import DealsManagementPage from './sales/DealsManagementPage';
 import ListPageHeader from './shared/ListPageHeader';
 import {
     Search, Filter, Plus, Users, Building, MonitorSmartphone,
@@ -288,20 +290,24 @@ const SalesManagement = () => {
             )}
 
             {view === 'pipeline' && (
-                <PipelineBoard 
+                <PipelineBoardPage 
                     deals={deals} 
-                    stages={pipelineStages} 
+                    clients={customers}
                     onRefresh={loadData}
                     onNavigateToQuote={(deal) => setSearchParams({ view: 'quotations', dealId: deal?.id })}
+                    onSwitchToTableView={() => setSearchParams({ view: 'deals' })}
+                    loading={loading}
                 />
             )}
 
             {view === 'deals' && (
-                <DealsManagementSection 
+                <DealsManagementPage 
                     deals={deals} 
                     clients={customers} 
                     onRefresh={loadData}
                     onNavigateToQuote={(deal) => setSearchParams({ view: 'quotations', dealId: deal?.id })}
+                    onSwitchToKanbanView={() => setSearchParams({ view: 'pipeline' })}
+                    loading={loading}
                 />
             )}
 
