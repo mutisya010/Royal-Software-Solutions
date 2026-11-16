@@ -25,6 +25,9 @@ import HRStaff from './portal/HRStaff'
 import ClientManagement from './portal/ClientManagement'
 import UserProfile from './portal/UserProfile'
 import SettingsPage from './portal/Settings'
+import UsersRoles from './portal/UsersRoles'
+import DocumentStudio from './portal/document-studio/DocumentStudio'
+import PlannerHub from './portal/planner/PlannerHub'
 
 // Client Portal
 import ClientPortalLayout from './portal/ClientPortalLayout'
@@ -33,6 +36,7 @@ import ClientProjects from './portal/ClientProjects'
 import ClientBilling from './portal/ClientBilling'
 import ClientSupport from './portal/ClientSupport'
 
+import FounderPortfolio from './components/founder/FounderPortfolio'
 import { useLocation } from 'react-router-dom'
 
 function AppContent() {
@@ -40,10 +44,11 @@ function AppContent() {
   const { isMenuOpen } = useNav()
   const isAuthRoute = ['/login', '/register', '/admin/login'].some(path => location.pathname.includes(path))
   const isPortalRoute = location.pathname.startsWith('/portal')
+  const isPortfolioRoute = ['/james', '/founder', '/portfolio', '/james-mbugua'].some(path => location.pathname.startsWith(path))
   
-  const showFooter = !isAuthRoute && !isPortalRoute
-  const showNavbar = !isAuthRoute && !isPortalRoute
-  const showWhatsApp = !isAuthRoute && !isPortalRoute
+  const showFooter = !isAuthRoute && !isPortalRoute && !isPortfolioRoute
+  const showNavbar = !isAuthRoute && !isPortalRoute && !isPortfolioRoute
+  const showWhatsApp = !isAuthRoute && !isPortalRoute && !isPortfolioRoute
 
   return (
     <>
@@ -61,6 +66,12 @@ function AppContent() {
         <Route path="/fahari-ledger" element={<FahariLedger />} />
         <Route path="/fahari-nexus" element={<FahariNexus />} />
 
+        {/* Founder Portfolio - Direct Unlinked URL */}
+        <Route path="/james" element={<FounderPortfolio />} />
+        <Route path="/founder" element={<FounderPortfolio />} />
+        <Route path="/portfolio" element={<FounderPortfolio />} />
+        <Route path="/james-mbugua" element={<FounderPortfolio />} />
+
         {/* Legacy redirect - /portal goes to admin dashboard */}
         <Route path="/portal" element={<Navigate to="/portal/admin/dashboard" replace />} />
         <Route path="/portal/dashboard" element={<Navigate to="/portal/admin/dashboard" replace />} />
@@ -77,6 +88,9 @@ function AppContent() {
           <Route path="support-tickets" element={<CustomerSupport />} />
           <Route path="profile" element={<UserProfile />} />
           <Route path="settings" element={<SettingsPage />} />
+          <Route path="users-roles" element={<UsersRoles />} />
+          <Route path="document-studio" element={<DocumentStudio />} />
+          <Route path="planner" element={<PlannerHub />} />
         </Route>
 
         {/* Client Portal Routes */}

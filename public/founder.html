@@ -1,0 +1,1612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>James Mbugua — Software Engineer, Founder &amp; African Infrastructure Builder</title>
+  <meta name="description" content="James Mbugua is a Kenyan software engineer and founder of Royal Software Solutions, building the Fahari Ecosystem — enterprise software for African institutions." />
+  
+  <!-- [JAMES TO ADD: Set your production canonical URL below] -->
+  <link rel="canonical" href="https://www.royalsoftwares.co.ke/founder" />
+
+  <!-- Open Graph / LinkedIn -->
+  <meta property="og:type" content="profile" />
+  <meta property="og:title" content="James Mbugua — Software Engineer, Founder &amp; African Infrastructure Builder" />
+  <meta property="og:description" content="Architect of the Fahari Ecosystem. Building the enterprise software that gives African institutions the operational clarity they deserve." />
+  <meta property="og:url" content="https://www.royalsoftwares.co.ke/founder" />
+  <meta property="og:site_name" content="James Mbugua Portfolio" />
+
+  <!-- Twitter / X -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:creator" content="@james_royalty" />
+  <meta name="twitter:title" content="James Mbugua — Software Engineer, Founder &amp; African Infrastructure Builder" />
+  <meta name="twitter:description" content="Architect of the Fahari Ecosystem. Building the enterprise software that gives African institutions the operational clarity they deserve." />
+
+  <!-- Google Fonts: Outfit + Inter + JetBrains Mono (Matches Royal Software Solutions) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Structured Data: Person Schema -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    "name": "James Mbugua",
+    "alternateName": "@james_royalty",
+    "jobTitle": "Founder, Software Engineer & Systems Thinker",
+    "worksFor": {
+      "@type": "Organization",
+      "name": "Royal Software Solutions",
+      "url": "https://www.royalsoftwares.co.ke"
+    },
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": "Nakuru",
+      "addressCountry": "Kenya"
+    },
+    "description": "Kenyan software engineer, founder of Royal Software Solutions, and architect of the Fahari Ecosystem.",
+    "url": "https://www.royalsoftwares.co.ke/founder",
+    "sameAs": [
+      "https://www.linkedin.com/in/james-mbugua",
+      "https://github.com/james-royalty",
+      "https://twitter.com/james_royalty"
+    ]
+  }
+  </script>
+
+  <style>
+    /* ==========================================================================
+       CSS VARIABLES & THEME TOKENS
+       ========================================================================== */
+    :root {
+      --bg-primary: #07111F;      /* Night Navy */
+      --bg-secondary: #0D1B3E;    /* Deep Navy */
+      --bg-surface: #0F2040;      /* Card Surface */
+      --text-primary: #FFFFFF;
+      --text-secondary: rgba(255, 255, 255, 0.65);
+      --text-muted: rgba(255, 255, 255, 0.45);
+      --accent-gold: #C89B2A;     /* Fahari Gold */
+      --accent-gold-soft: rgba(200, 155, 42, 0.15);
+      --accent-teal: #1B6B6B;     /* Fahari Teal */
+      --accent-ember: #C0392B;    /* CTA highlight */
+      --border-gold: rgba(200, 155, 42, 0.2);
+      --border-gold-hover: rgba(200, 155, 42, 0.5);
+      --font-heading: 'Outfit', sans-serif;
+      --font-serif: 'Outfit', sans-serif;
+      --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+      --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --max-width: 1200px;
+      --section-py-desktop: 120px;
+      --section-py-mobile: 80px;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      background-color: var(--bg-primary);
+    }
+
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* Accessibility Focus States */
+    a:focus-visible,
+    button:focus-visible,
+    input:focus-visible,
+    select:focus-visible,
+    textarea:focus-visible {
+      outline: 2px solid var(--accent-gold);
+      outline-offset: 3px;
+    }
+
+    .skip-link {
+      position: absolute;
+      top: -40px;
+      left: 20px;
+      background: var(--accent-gold);
+      color: #07111F;
+      padding: 8px 16px;
+      font-weight: 600;
+      z-index: 9999;
+      border-radius: 4px;
+      text-decoration: none;
+      transition: top 0.2s ease;
+    }
+    .skip-link:focus {
+      top: 20px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    .section {
+      padding: var(--section-py-desktop) 0;
+      position: relative;
+      border-bottom: 1px solid var(--border-gold);
+    }
+
+    .section-header {
+      margin-bottom: 64px;
+      max-width: 780px;
+    }
+
+    .section-tag {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      letter-spacing: 0.18em;
+      color: var(--accent-gold);
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    .section-title {
+      font-family: var(--font-serif);
+      font-size: clamp(2.4rem, 4.5vw, 3.6rem);
+      font-weight: 500;
+      letter-spacing: -0.02em;
+      color: #ffffff;
+      margin-bottom: 16px;
+      line-height: 1.15;
+    }
+
+    .section-subtitle {
+      font-size: 1.15rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    /* Buttons */
+    .btn-gold {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background-color: var(--accent-gold);
+      color: #07111F;
+      font-weight: 600;
+      font-size: 0.95rem;
+      padding: 14px 28px;
+      border-radius: 4px;
+      text-decoration: none;
+      border: 1px solid var(--accent-gold);
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+    .btn-gold:hover {
+      background-color: #d8a834;
+      box-shadow: 0 8px 24px rgba(200, 155, 42, 0.35);
+      transform: translateY(-2px);
+    }
+
+    .btn-outline {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background-color: transparent;
+      color: var(--accent-gold);
+      font-weight: 600;
+      font-size: 0.95rem;
+      padding: 14px 28px;
+      border-radius: 4px;
+      text-decoration: none;
+      border: 1px solid var(--accent-gold);
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+    .btn-outline:hover {
+      background-color: var(--accent-gold);
+      color: #07111F;
+      box-shadow: 0 8px 24px rgba(200, 155, 42, 0.25);
+      transform: translateY(-2px);
+    }
+
+    .btn-ghost {
+      display: inline-flex;
+      align-items: center;
+      padding: 10px 22px;
+      color: var(--accent-gold);
+      border: 1px solid var(--accent-gold);
+      border-radius: 4px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-decoration: none;
+      transition: all 0.25s ease;
+    }
+    .btn-ghost:hover {
+      background: var(--accent-gold);
+      color: #07111F;
+      box-shadow: 0 4px 16px rgba(200, 155, 42, 0.25);
+    }
+
+    /* 1. NAV */
+    .nav-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 1000;
+      background: transparent;
+      transition: background-color 0.3s ease, backdrop-filter 0.3s ease, border-bottom 0.3s ease;
+      padding: 20px 0;
+    }
+    .nav-bar.scrolled {
+      background-color: rgba(7, 17, 31, 0.92);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border-gold);
+      padding: 14px 0;
+    }
+    .nav-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      text-decoration: none;
+    }
+    .brand-monogram {
+      font-family: var(--font-serif);
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--accent-gold);
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: 1px solid var(--border-gold);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(15, 32, 64, 0.4);
+    }
+    .brand-meta {
+      display: flex;
+      flex-direction: column;
+    }
+    .brand-name {
+      font-family: var(--font-serif);
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: #ffffff;
+    }
+    .brand-sub {
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      color: var(--accent-gold);
+      text-transform: uppercase;
+    }
+    .nav-menu {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+    }
+    .nav-item {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: color 0.25s ease;
+      position: relative;
+    }
+    .nav-item:hover {
+      color: var(--accent-gold);
+    }
+    .nav-toggle {
+      display: none;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      flex-direction: column;
+      gap: 6px;
+      padding: 8px;
+    }
+    .nav-toggle span {
+      display: block;
+      width: 26px;
+      height: 2px;
+      background: var(--accent-gold);
+    }
+
+    /* 2. HERO */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding-top: 120px;
+      padding-bottom: 80px;
+      position: relative;
+      overflow: hidden;
+      border-bottom: 1px solid var(--border-gold);
+    }
+    .glow-teal {
+      position: absolute;
+      top: -10%;
+      right: -5%;
+      width: 650px;
+      height: 650px;
+      background: radial-gradient(circle, rgba(27, 107, 107, 0.28) 0%, rgba(7, 17, 31, 0) 70%);
+      filter: blur(40px);
+      pointer-events: none;
+    }
+    .glow-gold {
+      position: absolute;
+      bottom: -10%;
+      left: -5%;
+      width: 650px;
+      height: 650px;
+      background: radial-gradient(circle, rgba(200, 155, 42, 0.16) 0%, rgba(7, 17, 31, 0) 70%);
+      filter: blur(40px);
+      pointer-events: none;
+    }
+    .grid-bg {
+      position: absolute;
+      inset: 0;
+      background-image: 
+        linear-gradient(rgba(200, 155, 42, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(200, 155, 42, 0.03) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+    }
+    .hero-layout {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      align-items: center;
+      gap: 56px;
+      position: relative;
+      z-index: 2;
+    }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      letter-spacing: 0.2em;
+      color: var(--accent-gold);
+      margin-bottom: 24px;
+    }
+    .eyebrow-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-gold);
+      box-shadow: 0 0 10px var(--accent-gold);
+    }
+    .hero-headline {
+      font-family: var(--font-serif);
+      font-size: clamp(3rem, 5.8vw, 5.2rem);
+      font-weight: 400;
+      line-height: 1.08;
+      letter-spacing: -0.025em;
+      margin-bottom: 24px;
+    }
+    .hero-headline .italic { font-style: italic; }
+    .hero-headline .gold { color: var(--accent-gold); }
+    .hero-sub {
+      font-size: 1.15rem;
+      color: var(--text-secondary);
+      max-width: 540px;
+      margin-bottom: 36px;
+      line-height: 1.65;
+    }
+    .hero-actions {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 36px;
+      flex-wrap: wrap;
+    }
+    .social-proof {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 18px;
+      border-radius: 6px;
+      background: rgba(15, 32, 64, 0.4);
+      border: 1px solid var(--border-gold);
+      font-size: 0.84rem;
+      color: var(--text-secondary);
+    }
+    .social-proof strong { color: #ffffff; }
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #2ECC71;
+      box-shadow: 0 0 8px #2ECC71;
+    }
+
+    /* Terminal */
+    .terminal-box {
+      background: rgba(15, 32, 64, 0.9);
+      border: 1px solid var(--border-gold);
+      border-radius: 10px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 30px rgba(200, 155, 42, 0.08);
+      overflow: hidden;
+    }
+    .term-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: rgba(13, 27, 62, 0.95);
+      border-bottom: 1px solid var(--border-gold);
+    }
+    .term-dots {
+      display: flex;
+      gap: 7px;
+    }
+    .term-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+    .term-body {
+      padding: 20px;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      line-height: 1.7;
+    }
+    .term-meta {
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+    .term-prompt { color: var(--accent-gold); margin-right: 8px; }
+    .term-cursor {
+      display: inline-block;
+      width: 8px;
+      height: 16px;
+      background: var(--accent-gold);
+      vertical-align: middle;
+      animation: blink 1s step-end infinite;
+    }
+
+    /* 3. ABOUT */
+    .about-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 56px;
+      align-items: start;
+      margin-bottom: 64px;
+    }
+    .about-quote-box {
+      padding-left: 32px;
+      border-left: 2px solid var(--accent-gold);
+      position: relative;
+    }
+    .pull-quote {
+      font-family: var(--font-serif);
+      font-size: clamp(1.8rem, 3.2vw, 2.5rem);
+      font-style: italic;
+      line-height: 1.25;
+      margin-bottom: 20px;
+    }
+    .quote-author {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      color: var(--accent-gold);
+      text-transform: uppercase;
+    }
+    .about-bio p {
+      margin-bottom: 20px;
+      color: var(--text-secondary);
+      line-height: 1.75;
+    }
+    .about-bio .lead {
+      color: #ffffff;
+      font-size: 1.15rem;
+    }
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      margin-bottom: 56px;
+    }
+    .stat-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-gold);
+      border-radius: 8px;
+      padding: 32px 24px;
+      transition: transform 0.3s ease, border-color 0.3s ease;
+    }
+    .stat-card:hover {
+      transform: translateY(-4px);
+      border-color: var(--border-gold-hover);
+    }
+    .stat-val {
+      font-family: var(--font-serif);
+      font-size: 3.5rem;
+      font-weight: 700;
+      color: var(--accent-gold);
+      line-height: 1;
+      margin-bottom: 10px;
+    }
+    .stat-title {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: #ffffff;
+    }
+    .stat-sub {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+    .skills-cloud {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 20px;
+    }
+    .skill-tag {
+      background: rgba(15, 32, 64, 0.6);
+      border: 1px solid var(--border-gold);
+      color: var(--text-secondary);
+      padding: 8px 18px;
+      border-radius: 20px;
+      font-size: 0.88rem;
+      transition: all 0.25s ease;
+    }
+    .skill-tag:hover {
+      border-color: var(--accent-gold);
+      color: var(--accent-gold);
+      background: rgba(200, 155, 42, 0.1);
+    }
+
+    /* 4. EXPERTISE */
+    .expertise-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 28px;
+    }
+    .expertise-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-gold);
+      border-radius: 8px;
+      padding: 36px 28px;
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+    .expertise-card:hover {
+      transform: translateY(-4px);
+      border-color: var(--border-gold-hover);
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.45);
+    }
+    .expertise-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      color: var(--accent-gold);
+    }
+    .expertise-num {
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+    .expertise-title {
+      font-family: var(--font-serif);
+      font-size: 1.4rem;
+      color: #ffffff;
+      margin-bottom: 14px;
+    }
+    .expertise-desc {
+      font-size: 0.94rem;
+      color: var(--text-secondary);
+      line-height: 1.65;
+    }
+
+    /* 5. PROJECTS */
+    .projects-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 48px;
+    }
+    .project-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-gold);
+      border-radius: 12px;
+      padding: 44px;
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 48px;
+      align-items: center;
+      transition: border-color 0.3s ease, transform 0.3s ease;
+    }
+    .project-card:hover {
+      border-color: var(--border-gold-hover);
+      transform: translateY(-3px);
+    }
+    .project-card.reverse {
+      grid-template-columns: 0.9fr 1.1fr;
+    }
+    .project-card.reverse .project-info { order: 2; }
+    .project-card.reverse .project-mockup { order: 1; }
+    .project-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+    .status-live {
+      background: rgba(46, 204, 113, 0.14);
+      color: #2ECC71;
+      border: 1px solid rgba(46, 204, 113, 0.35);
+    }
+    .status-dev {
+      background: rgba(200, 155, 42, 0.14);
+      color: var(--accent-gold);
+      border: 1px solid rgba(200, 155, 42, 0.35);
+    }
+    .status-roadmap {
+      background: rgba(27, 107, 107, 0.2);
+      color: #5EEAD4;
+      border: 1px solid rgba(27, 107, 107, 0.4);
+    }
+    .project-title {
+      font-family: var(--font-serif);
+      font-size: 2.2rem;
+      color: #ffffff;
+      margin-bottom: 10px;
+    }
+    .project-h {
+      font-size: 1.05rem;
+      font-weight: 500;
+      color: var(--accent-gold);
+      margin-bottom: 16px;
+    }
+    .project-p {
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+      line-height: 1.7;
+      margin-bottom: 24px;
+    }
+    .project-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 28px;
+    }
+    .project-tag {
+      background: rgba(7, 17, 31, 0.6);
+      border: 1px solid var(--border-gold);
+      padding: 4px 12px;
+      border-radius: 4px;
+      font-size: 0.78rem;
+      font-family: var(--font-mono);
+      color: var(--text-secondary);
+    }
+    .project-links {
+      display: flex;
+      gap: 16px;
+    }
+    .mockup-box {
+      background: #081426;
+      border: 1px solid var(--border-gold);
+      border-radius: 8px;
+      padding: 24px;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+    }
+
+    /* 6. ECOSYSTEM */
+    .clusters-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+      margin-bottom: 64px;
+    }
+    .cluster-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-gold);
+      border-radius: 10px;
+      padding: 40px 32px;
+      transition: transform 0.3s ease;
+    }
+    .cluster-card:hover {
+      transform: translateY(-4px);
+    }
+    .cluster-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      color: var(--accent-gold);
+    }
+    .cluster-title {
+      font-family: var(--font-serif);
+      font-size: 1.75rem;
+      color: #ffffff;
+      margin-bottom: 12px;
+    }
+    .cluster-p {
+      font-size: 0.94rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+    .statement-box {
+      background: linear-gradient(135deg, rgba(15, 32, 64, 0.8) 0%, rgba(7, 17, 31, 0.9) 100%);
+      border: 1px solid var(--border-gold);
+      border-radius: 12px;
+      padding: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 32px;
+    }
+    .statement-text {
+      font-family: var(--font-serif);
+      font-size: clamp(1.8rem, 3.2vw, 2.6rem);
+      line-height: 1.2;
+    }
+    .statement-text .gold {
+      color: var(--accent-gold);
+      font-style: italic;
+    }
+
+    /* 7. THE MAKING */
+    .making-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 28px;
+      margin-bottom: 48px;
+    }
+    .making-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-gold);
+      border-radius: 8px;
+      padding: 36px 28px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.3s ease;
+    }
+    .making-card:hover { transform: translateY(-4px); }
+    .making-accent-line {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--accent-gold);
+      border-radius: 8px 8px 0 0;
+    }
+    .making-meta {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+    }
+    .making-title {
+      font-family: var(--font-serif);
+      font-size: 1.45rem;
+      color: #ffffff;
+      margin-bottom: 16px;
+      line-height: 1.3;
+    }
+    .making-excerpt {
+      font-size: 0.94rem;
+      color: var(--text-secondary);
+      font-style: italic;
+      line-height: 1.65;
+      margin-bottom: 24px;
+      flex: 1;
+    }
+    .making-link {
+      color: var(--accent-gold);
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.88rem;
+    }
+
+    /* 8. PROCESS */
+    .timeline-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 24px;
+      margin-top: 48px;
+    }
+    .timeline-step {
+      display: flex;
+      flex-direction: column;
+    }
+    .step-circle {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: var(--bg-surface);
+      border: 2px solid var(--accent-gold);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 1.1rem;
+      color: var(--accent-gold);
+      margin-bottom: 24px;
+    }
+    .step-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-gold);
+      border-radius: 8px;
+      padding: 24px;
+      flex: 1;
+    }
+    .step-tag {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--accent-gold);
+      margin-bottom: 8px;
+      display: block;
+      text-transform: uppercase;
+    }
+    .step-h {
+      font-family: var(--font-serif);
+      font-size: 1.25rem;
+      color: #ffffff;
+      margin-bottom: 12px;
+    }
+    .step-p {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    /* 9. CONTACT */
+    .contact-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.15fr;
+      gap: 56px;
+      align-items: start;
+    }
+    .credo {
+      font-family: var(--font-serif);
+      font-size: clamp(1.8rem, 3.2vw, 2.5rem);
+      line-height: 1.2;
+      margin-bottom: 36px;
+    }
+    .credo .gold { color: var(--accent-gold); font-style: italic; }
+    .contact-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-bottom: 36px;
+    }
+    .contact-card-item {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 14px 18px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-gold);
+      border-radius: 8px;
+      color: #ffffff;
+      text-decoration: none;
+      transition: border-color 0.25s ease;
+    }
+    .contact-card-item:hover { border-color: var(--accent-gold); }
+    .form-wrapper {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-gold);
+      border-radius: 12px;
+      padding: 40px;
+    }
+    .form-row {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    .form-row label {
+      font-size: 0.88rem;
+      font-weight: 500;
+    }
+    .input-field {
+      width: 100%;
+      background: rgba(7, 17, 31, 0.7);
+      border: 1px solid var(--border-gold);
+      border-radius: 6px;
+      padding: 12px 16px;
+      color: #ffffff;
+      font-family: var(--font-sans);
+      font-size: 0.92rem;
+    }
+    .input-field:focus {
+      border-color: var(--accent-gold);
+      outline: none;
+    }
+
+    /* 10. FOOTER */
+    .footer {
+      background: #040b15;
+      border-top: 1px solid var(--border-gold);
+      padding: 80px 0 32px 0;
+    }
+    .footer-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr 1fr;
+      gap: 48px;
+      margin-bottom: 64px;
+    }
+    .footer-bottom {
+      display: flex;
+      justify-content: space-between;
+      padding-top: 24px;
+      border-top: 1px solid rgba(200, 155, 42, 0.15);
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+
+    @keyframes blink { 50% { opacity: 0; } }
+
+    /* Responsive */
+    @media (max-width: 1024px) {
+      .hero-layout { grid-template-columns: 1fr; }
+      .about-grid, .clusters-grid, .contact-grid { grid-template-columns: 1fr; }
+      .expertise-grid, .making-grid { grid-template-columns: repeat(2, 1fr); }
+      .timeline-grid { grid-template-columns: repeat(2, 1fr); }
+      .project-card, .project-card.reverse { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 768px) {
+      .nav-menu { display: none; }
+      .nav-toggle { display: flex; }
+      .expertise-grid, .making-grid, .stats-row, .timeline-grid { grid-template-columns: 1fr; }
+      .statement-box { flex-direction: column; align-items: flex-start; }
+      .footer-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+
+<body>
+  <a href="#about" class="skip-link">Skip to main content</a>
+
+  <!-- 1. NAVIGATION -->
+  <header class="nav-bar" id="navbar">
+    <div class="container nav-inner">
+      <a href="#hero" class="brand-group">
+        <span class="brand-monogram">JM</span>
+        <div class="brand-meta">
+          <span class="brand-name">James Mbugua</span>
+          <span class="brand-sub">Founder &middot; Systems Thinker</span>
+        </div>
+      </a>
+
+      <nav class="nav-menu">
+        <a href="#about" class="nav-item">About</a>
+        <a href="#expertise" class="nav-item">Expertise</a>
+        <a href="#projects" class="nav-item">Projects</a>
+        <a href="#fahari" class="nav-item">Fahari</a>
+        <a href="#writing" class="nav-item">Writing</a>
+        <a href="#contact" class="nav-item">Contact</a>
+      </nav>
+
+      <div class="nav-action">
+        <a href="#contact" class="btn-ghost">Let's Build</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- 2. HERO -->
+  <section id="hero" class="hero">
+    <div class="glow-teal"></div>
+    <div class="glow-gold"></div>
+    <div class="grid-bg"></div>
+
+    <div class="container hero-layout">
+      <div class="hero-text-col">
+        <div class="eyebrow">
+          <span class="eyebrow-dot"></span>
+          <span>SOFTWARE ENGINEER &middot; FOUNDER &middot; SYSTEMS THINKER</span>
+        </div>
+
+        <h1 class="hero-headline">
+          Building systems<br />
+          <span class="italic">Africa's institutions</span><br />
+          <span class="gold">deserve.</span>
+        </h1>
+
+        <p class="hero-sub">
+          Founder of Royal Software Solutions and architect of the Fahari Ecosystem &mdash; enterprise software for African schools, businesses, and cooperatives.
+        </p>
+
+        <div class="hero-actions">
+          <a href="#projects" class="btn-gold">View My Work</a>
+          <a href="#writing" class="btn-outline">Read The Making</a>
+        </div>
+
+        <div class="social-proof">
+          <span class="live-dot"></span>
+          <span><strong>6 schools live</strong> &middot; 2 active products &middot; 1 ecosystem &middot; Building for Africa</span>
+        </div>
+      </div>
+
+      <div class="hero-visual-col">
+        <div class="terminal-box">
+          <div class="term-bar">
+            <div class="term-dots">
+              <span class="term-dot" style="background:#e74c3c;"></span>
+              <span class="term-dot" style="background:#f39c12;"></span>
+              <span class="term-dot" style="background:#2ecc71;"></span>
+            </div>
+            <span style="font-family:var(--font-mono); font-size:0.75rem; color:var(--text-muted);">fahari-runtime v1.0</span>
+            <span style="font-family:var(--font-mono); font-size:0.68rem; color:var(--accent-gold); border:1px solid var(--border-gold); padding:2px 6px; border-radius:3px;">LIVE</span>
+          </div>
+          <div class="term-body">
+            <div class="term-meta">james@nakuru-core:~/fahari (main)</div>
+            <p><span class="term-prompt">$</span>fahari --version</p>
+            <p style="color:var(--text-secondary); margin-left:14px;">Fahari Ecosystem v1.0</p>
+            <p style="color:var(--text-secondary); margin-left:14px;">Platforms: 17 &middot; Clusters: 4</p>
+            <p style="color:var(--text-secondary); margin-left:14px;">Status: Building &amp; Scaling</p>
+            <p style="color:var(--text-secondary); margin-left:14px;">Market: East Africa &rarr; Pan-African</p>
+            <p style="color:var(--accent-gold); margin-left:14px; font-weight:500;">Mission: Infrastructure of African Excellence</p>
+            <p style="margin-top:12px;"><span class="term-prompt">$</span><span class="term-cursor"></span></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. ABOUT -->
+  <section id="about" class="section">
+    <div class="container">
+      <div class="section-tag">01 &mdash; IDENTITY &amp; PHILOSOPHY</div>
+
+      <div class="about-grid">
+        <div class="about-quote-box">
+          <blockquote class="pull-quote">
+            &ldquo;I build systems that give African institutions the operational clarity they deserve.&rdquo;
+          </blockquote>
+          <div class="quote-author">James Mbugua &middot; Founder, Royal Software Solutions</div>
+        </div>
+
+        <div class="about-bio">
+          <p class="lead">
+            James Mbugua is a Kenyan software engineer and founder based in Nakuru, Kenya. He is the founder of Royal Software Solutions and the architect of the Fahari Ecosystem &mdash; a suite of enterprise software platforms serving schools, businesses, SACCOs, healthcare providers, and institutions across East Africa.
+          </p>
+          <p>
+            His work sits at the intersection of systems thinking, African institutional infrastructure, and technology &mdash; building software that reduces operational chaos and creates clarity for the organisations that serve everyday people.
+          </p>
+          <p>
+            He writes about the founder journey, African innovation, and systems thinking in a personal series called <strong style="color:var(--accent-gold);">The Making</strong>.
+          </p>
+        </div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-val">6+</div>
+          <div class="stat-title">Schools Live</div>
+          <div class="stat-sub">on Fahari Academia</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val">17</div>
+          <div class="stat-title">Platforms</div>
+          <div class="stat-sub">in the Fahari Ecosystem</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val">1</div>
+          <div class="stat-title">Mission</div>
+          <div class="stat-sub">African Excellence</div>
+        </div>
+      </div>
+
+      <div class="skills-cloud">
+        <span class="skill-tag">React</span>
+        <span class="skill-tag">Node.js</span>
+        <span class="skill-tag">Python</span>
+        <span class="skill-tag">PostgreSQL</span>
+        <span class="skill-tag">MySQL</span>
+        <span class="skill-tag">REST APIs</span>
+        <span class="skill-tag">System Architecture</span>
+        <span class="skill-tag">ERP Design</span>
+        <span class="skill-tag">SaaS</span>
+        <span class="skill-tag">Cloud Infrastructure</span>
+        <span class="skill-tag">M-Pesa Integration</span>
+        <span class="skill-tag">AI/ML Integration</span>
+        <span class="skill-tag">Business Analysis</span>
+        <span class="skill-tag">Product Strategy</span>
+        <span class="skill-tag">African Market Strategy</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. EXPERTISE -->
+  <section id="expertise" class="section">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-tag">02 &mdash; EXPERTISE</span>
+        <h2 class="section-title">What I Do</h2>
+        <p class="section-subtitle">At the intersection of engineering, business, and African innovation.</p>
+      </div>
+
+      <div class="expertise-grid">
+        <div class="expertise-card">
+          <div class="expertise-top">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+            <span class="expertise-num">01</span>
+          </div>
+          <h3 class="expertise-title">Software Engineering</h3>
+          <p class="expertise-desc">Full-stack development with a focus on enterprise systems, ERP architecture, and SaaS platforms built for scale. From database schema to deployed product.</p>
+        </div>
+
+        <div class="expertise-card">
+          <div class="expertise-top">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="6" height="6" rx="1"/><rect x="16" y="2" width="6" height="6" rx="1"/><rect x="9" y="16" width="6" height="6" rx="1"/><path d="M5 8v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8"/><line x1="12" y1="13" x2="12" y2="16"/></svg>
+            <span class="expertise-num">02</span>
+          </div>
+          <h3 class="expertise-title">Systems Architecture</h3>
+          <p class="expertise-desc">Designing interconnected systems where data flows intelligently between modules. Every Fahari product shares a unified architecture layer.</p>
+        </div>
+
+        <div class="expertise-card">
+          <div class="expertise-top">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
+            <span class="expertise-num">03</span>
+          </div>
+          <h3 class="expertise-title">Product Strategy</h3>
+          <p class="expertise-desc">From problem discovery to roadmap to go-to-market. Building products that solve real African institutional problems — not software for software's sake.</p>
+        </div>
+
+        <div class="expertise-card">
+          <div class="expertise-top">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            <span class="expertise-num">04</span>
+          </div>
+          <h3 class="expertise-title">Business Analysis</h3>
+          <p class="expertise-desc">Translating institutional operational challenges into precise technical specifications. Speaking both the language of the boardroom and the codebase.</p>
+        </div>
+
+        <div class="expertise-card">
+          <div class="expertise-top">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+            <span class="expertise-num">05</span>
+          </div>
+          <h3 class="expertise-title">African Market Strategy</h3>
+          <p class="expertise-desc">Understanding how East African institutions make decisions, what they trust, and how to build products for contexts the global software industry ignores.</p>
+        </div>
+
+        <div class="expertise-card">
+          <div class="expertise-top">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <span class="expertise-num">06</span>
+          </div>
+          <h3 class="expertise-title">Founder Leadership</h3>
+          <p class="expertise-desc">Building and leading a technology company from zero — product, team, clients, and vision — in one of the most underserved technology markets on earth.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. PROJECTS -->
+  <section id="projects" class="section">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-tag">03 &mdash; SELECTED WORK</span>
+        <h2 class="section-title">Work</h2>
+        <p class="section-subtitle">Selected projects and products built.</p>
+      </div>
+
+      <div class="projects-stack">
+        <!-- Project 1 -->
+        <article class="project-card">
+          <div class="project-info">
+            <span class="project-status status-live">● LIVE</span>
+            <h3 class="project-title">Fahari Academia</h3>
+            <p class="project-h">The complete school management system for East African private schools.</p>
+            <p class="project-p">A full ERP covering fee management with M-Pesa integration, student information, CBC/KCSE/IGCSE exam and report card automation, HR and payroll (NHIF/NSSF/PAYE), procurement, and a live leadership dashboard. Currently serving 6 schools in Kenya.</p>
+            <div class="project-tags">
+              <span class="project-tag">ERP</span>
+              <span class="project-tag">Education</span>
+              <span class="project-tag">React</span>
+              <span class="project-tag">Node.js</span>
+              <span class="project-tag">M-Pesa</span>
+            </div>
+            <div class="project-links">
+              <a href="https://www.royalsoftwares.co.ke" target="_blank" class="btn-gold">Explore Product &rarr;</a>
+            </div>
+          </div>
+          <div class="project-mockup">
+            <div class="mockup-box">
+              <p style="color:var(--accent-gold); margin-bottom:8px;">&gt; academia.status()</p>
+              <p style="color:#ffffff;">Active Schools: 6 (Nakuru County)</p>
+              <p style="color:var(--text-secondary);">M-Pesa STK Gateway: Verified Live</p>
+              <p style="color:var(--text-secondary);">Exam Generator: CBC/KCSE Automated</p>
+            </div>
+          </div>
+        </article>
+
+        <!-- Project 2 -->
+        <article class="project-card reverse">
+          <div class="project-info">
+            <span class="project-status status-live">● LIVE</span>
+            <h3 class="project-title">Fahari Nexus</h3>
+            <p class="project-h">Business operations platform for East African SMEs and enterprises.</p>
+            <p class="project-p">Connected sales pipeline, inventory management, procurement workflows, multi-level approvals, and real-time financial dashboards. Built for businesses that are done making decisions without data.</p>
+            <div class="project-tags">
+              <span class="project-tag">ERP</span>
+              <span class="project-tag">Business</span>
+              <span class="project-tag">Inventory</span>
+              <span class="project-tag">Finance</span>
+            </div>
+            <div class="project-links">
+              <a href="https://www.royalsoftwares.co.ke" target="_blank" class="btn-gold">Explore Product &rarr;</a>
+            </div>
+          </div>
+          <div class="project-mockup">
+            <div class="mockup-box">
+              <p style="color:var(--accent-gold); margin-bottom:8px;">&gt; nexus.audit_log()</p>
+              <p style="color:#ffffff;">Pipeline: Multi-Branch Synchronized</p>
+              <p style="color:var(--text-secondary);">Approvals: 4-Stage Hierarchy</p>
+              <p style="color:var(--text-secondary);">Real-Time Audit Trail: Active</p>
+            </div>
+          </div>
+        </article>
+
+        <!-- Project 3 -->
+        <article class="project-card">
+          <div class="project-info">
+            <span class="project-status status-dev">● IN DEVELOPMENT</span>
+            <h3 class="project-title">Fahari Intelligence</h3>
+            <p class="project-h">Agentic AI generating institutional documents from live school data.</p>
+            <p class="project-p">An AI layer embedded inside Fahari Academia that reads student marks, attendance, and fee records to generate report card narratives, parent letters, and board reports automatically. 400 report cards generated overnight. Human review built in.</p>
+            <div class="project-tags">
+              <span class="project-tag">AI</span>
+              <span class="project-tag">Agentic</span>
+              <span class="project-tag">Education</span>
+              <span class="project-tag">Claude API</span>
+            </div>
+            <div class="project-links">
+              <a href="#contact" class="btn-outline">Architecture Inquiry &rarr;</a>
+            </div>
+          </div>
+          <div class="project-mockup">
+            <div class="mockup-box">
+              <p style="color:var(--accent-gold); margin-bottom:8px;">&gt; ai_agent.batch_synthesize()</p>
+              <p style="color:#5EEAD4;">Batch Size: 400 Student Marksheets</p>
+              <p style="color:var(--text-secondary);">Latency: 1.2s per generated narrative</p>
+              <p style="color:#2ECC71;">Human Review Checkpoint: Enforced</p>
+            </div>
+          </div>
+        </article>
+
+        <!-- Project 4 -->
+        <article class="project-card reverse">
+          <div class="project-info">
+            <span class="project-status status-roadmap">● ROADMAP 2026</span>
+            <h3 class="project-title">Fahari Ledger</h3>
+            <p class="project-h">SACCO and microfinance management for East African cooperatives.</p>
+            <p class="project-p">Member management, loan lifecycle, savings tracking, and SASRA compliance reporting — built for the cooperative financial sector that global vendors have systematically ignored.</p>
+            <div class="project-tags">
+              <span class="project-tag">SACCO</span>
+              <span class="project-tag">Microfinance</span>
+              <span class="project-tag">Compliance</span>
+            </div>
+            <div class="project-links">
+              <a href="#contact" class="btn-outline">View Specs &rarr;</a>
+            </div>
+          </div>
+          <div class="project-mockup">
+            <div class="mockup-box">
+              <p style="color:var(--accent-gold); margin-bottom:8px;">&gt; ledger.schema_verify()</p>
+              <p style="color:#ffffff;">Module: SASRA Form 2A Automatic Filing</p>
+              <p style="color:var(--text-secondary);">Micro-Credit Scoring &amp; Guarantors</p>
+            </div>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. FAHARI ECOSYSTEM -->
+  <section id="fahari" class="section">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-tag">04 &mdash; THE ARCHITECTURE</span>
+        <h2 class="section-title">The Fahari Ecosystem</h2>
+        <p class="section-subtitle">17 platforms. 4 clusters. One infrastructure layer for African institutions.</p>
+      </div>
+
+      <p style="max-width:820px; font-size:1.15rem; color:var(--text-secondary); margin-bottom:56px; line-height:1.75;">
+        The Fahari Ecosystem is the life's work behind all the individual projects. A unified, modular enterprise software platform serving every type of African institution &mdash; from a primary school in Nakuru to a manufacturing plant in Nairobi to a SACCO in Kampala.
+      </p>
+
+      <div class="clusters-grid">
+        <div class="cluster-card">
+          <div class="cluster-top">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+            <span class="project-status status-live">Academia LIVE</span>
+          </div>
+          <h3 class="cluster-title">Education</h3>
+          <p class="cluster-p">Platforms: Fahari Academia &middot; Fahari Campus</p>
+        </div>
+
+        <div class="cluster-card">
+          <div class="cluster-top">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4"/></svg>
+            <span class="project-status status-live">Nexus LIVE</span>
+          </div>
+          <h3 class="cluster-title">Enterprise</h3>
+          <p class="cluster-p">Platforms: Nexus &middot; Financials &middot; Workforce &middot; Connect &middot; Flow &middot; Pulse &middot; Zenith &middot; Vault</p>
+        </div>
+
+        <div class="cluster-card">
+          <div class="cluster-top">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/></svg>
+            <span class="project-status status-roadmap">Roadmap 2027+</span>
+          </div>
+          <h3 class="cluster-title">Industry</h3>
+          <p class="cluster-p">Platforms: Hospitality &middot; Industrial &middot; Transporter &middot; Construct &middot; Care &middot; Aid</p>
+        </div>
+
+        <div class="cluster-card">
+          <div class="cluster-top">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/></svg>
+            <span class="project-status status-dev">Roadmap 2026</span>
+          </div>
+          <h3 class="cluster-title">Financial Inclusion</h3>
+          <p class="cluster-p">Platforms: Fahari Ledger</p>
+        </div>
+      </div>
+
+      <div class="statement-box">
+        <div class="statement-text">
+          Built in Nakuru, Kenya.<br />
+          <span class="gold">For East Africa first.</span><br />
+          Then the continent.
+        </div>
+        <a href="https://www.royalsoftwares.co.ke" target="_blank" class="btn-gold">Explore the Full Ecosystem &rarr;</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7. THE MAKING -->
+  <section id="writing" class="section">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-tag">05 &mdash; WRITING &amp; ESSAYS</span>
+        <h2 class="section-title">The Making</h2>
+        <p class="section-subtitle">A founder's documentary series on building in public.</p>
+      </div>
+
+      <p style="max-width:780px; font-size:1.15rem; color:var(--text-secondary); margin-bottom:48px; line-height:1.7;">
+        <em>The Making</em> is my personal writing series on LinkedIn &mdash; documenting the honest, unpolished experience of building something significant from Nakuru, Kenya. Not motivation. Not performance. <strong style="color:#ffffff;">Founder documentary.</strong>
+      </p>
+
+      <div class="making-grid">
+        <!-- Entry 01 -->
+        <article class="making-card">
+          <div class="making-accent-line"></div>
+          <div class="making-meta">
+            <span style="color:var(--text-muted);">Founder Diary</span>
+            <span style="color:var(--accent-gold); font-weight:600;">Entry 01</span>
+          </div>
+          <h3 class="making-title">The product is built. No one has seen it yet.</h3>
+          <p class="making-excerpt">&ldquo;Most founders rush to launch before they are ready. I stayed too long in the building phase. Both are real risks.&rdquo;</p>
+          <a href="https://www.linkedin.com/in/james-mbugua" target="_blank" class="making-link">Read on LinkedIn &rarr;</a>
+        </article>
+
+        <!-- Entry 03 -->
+        <article class="making-card">
+          <div class="making-accent-line"></div>
+          <div class="making-meta">
+            <span style="color:var(--text-muted);">Field Notes</span>
+            <span style="color:var(--accent-gold); font-weight:600;">Entry 03</span>
+          </div>
+          <h3 class="making-title">I went out today and knocked on real doors.</h3>
+          <p class="making-excerpt">&ldquo;Some were closed. Some said not now. One bursar said: how long has this existed? We have needed this for years.&rdquo;</p>
+          <a href="https://www.linkedin.com/in/james-mbugua" target="_blank" class="making-link">Read on LinkedIn &rarr;</a>
+        </article>
+
+        <!-- Entry 08 -->
+        <article class="making-card">
+          <div class="making-accent-line"></div>
+          <div class="making-meta">
+            <span style="color:var(--text-muted);">Systems Thinking</span>
+            <span style="color:var(--accent-gold); font-weight:600;">Entry 08</span>
+          </div>
+          <h3 class="making-title">Infrastructure is invisible. Until it breaks.</h3>
+          <p class="making-excerpt">&ldquo;Nobody thinks about the road until there is a pothole. That is what Fahari fixes. Before the break.&rdquo;</p>
+          <a href="https://www.linkedin.com/in/james-mbugua" target="_blank" class="making-link">Read on LinkedIn &rarr;</a>
+        </article>
+      </div>
+
+      <div style="text-align:center;">
+        <a href="https://www.linkedin.com/in/james-mbugua" target="_blank" class="btn-outline">Follow The Making on LinkedIn &rarr;</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8. PROCESS -->
+  <section id="process" class="section">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-tag">06 &mdash; METHODOLOGY</span>
+        <h2 class="section-title">How I Build</h2>
+        <p class="section-subtitle">The thinking behind the systems.</p>
+      </div>
+
+      <div class="timeline-grid">
+        <div class="timeline-step">
+          <div class="step-circle">01</div>
+          <div class="step-card">
+            <span class="step-tag">Field Immersion</span>
+            <h3 class="step-h">Understand the Institution</h3>
+            <p class="step-p">Before any code, I spend time inside the institution. Understanding how the bursar reconciles fees. How the principal makes decisions. What operational chaos actually looks like from the inside.</p>
+          </div>
+        </div>
+
+        <div class="timeline-step">
+          <div class="step-circle">02</div>
+          <div class="step-card">
+            <span class="step-tag">Systems Architecture</span>
+            <h3 class="step-h">Map the System</h3>
+            <p class="step-p">Every institution is a system. I map the inputs, the outputs, the bottlenecks, and the data flows before designing a single screen. The architecture comes from the operational reality — not from existing software templates.</p>
+          </div>
+        </div>
+
+        <div class="timeline-step">
+          <div class="step-circle">03</div>
+          <div class="step-card">
+            <span class="step-tag">Foundational Engineering</span>
+            <h3 class="step-h">Build the Infrastructure</h3>
+            <p class="step-p">I build foundations, not features. Every module in Fahari shares a unified authentication, billing, and data layer. What looks like a school fee system from the outside is actually an institutional operating system from the inside.</p>
+          </div>
+        </div>
+
+        <div class="timeline-step">
+          <div class="step-circle">04</div>
+          <div class="step-card">
+            <span class="step-tag">Proximity Advantage</span>
+            <h3 class="step-h">Iterate from Inside the Market</h3>
+            <p class="step-p">I am in Nakuru. My clients are in Nakuru. When something is not working, I hear about it the same day. That proximity is not a limitation — it is the competitive advantage.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9. CONTACT -->
+  <section id="contact" class="section">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-tag">07 &mdash; CONNECT</span>
+        <h2 class="section-title">Let's Build Something</h2>
+        <p class="section-subtitle">For collaborations, consulting, product partnerships, and conversations about African technology infrastructure.</p>
+      </div>
+
+      <div class="contact-grid">
+        <div class="contact-info-col">
+          <div class="credo">
+            I am based in Nakuru, Kenya.<br />
+            <span class="gold">I build for East Africa.</span><br />
+            I think in systems.
+          </div>
+
+          <div class="contact-list">
+            <!-- [JAMES TO ADD: Your personal email here] -->
+            <a href="mailto:info@royalsoftwares.co.ke" class="contact-card-item">
+              <span style="color:var(--accent-gold);">✉</span>
+              <span>info@royalsoftwares.co.ke</span>
+            </a>
+            <a href="tel:+254759437978" class="contact-card-item">
+              <span style="color:var(--accent-gold);">☏</span>
+              <span>+254 759 437 978</span>
+            </a>
+            <a href="https://wa.me/254759437978?text=Hi%20James%2C%20I%20am%20reaching%20out%20from%20your%20portfolio." target="_blank" class="contact-card-item">
+              <span style="color:#2ECC71;">💬</span>
+              <span>WhatsApp: +254 759 437 978</span>
+            </a>
+            <div class="contact-card-item" style="cursor:default;">
+              <span style="color:var(--accent-gold);">📍</span>
+              <span>Nakuru, Kenya</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-wrapper">
+          <form id="contactForm" onsubmit="event.preventDefault(); document.getElementById('formSuccess').style.display='block'; this.style.display='none';">
+            <div class="form-row">
+              <label for="name">Full Name</label>
+              <input type="text" id="name" class="input-field" required placeholder="Dr. Arthur Kibera" />
+            </div>
+            <div class="form-row">
+              <label for="email">Email Address</label>
+              <input type="email" id="email" class="input-field" required placeholder="arthur@institution.co.ke" />
+            </div>
+            <div class="form-row">
+              <label for="org">What are you building?</label>
+              <select id="org" class="input-field">
+                <option value="School">School / Educational Institution</option>
+                <option value="Business">Business / SME Enterprise</option>
+                <option value="SACCO">SACCO / Microfinance / Chama</option>
+                <option value="NGO">NGO / Public Organization</option>
+                <option value="Partnership">Product Partnership / Investment</option>
+                <option value="Other">Other Strategic Initiative</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label for="msg">Message</label>
+              <textarea id="msg" rows="4" class="input-field" required placeholder="Describe your institutional focus or scope..."></textarea>
+            </div>
+            <button type="submit" class="btn-gold" style="width:100%; justify-content:center;">Send Message</button>
+          </form>
+
+          <div id="formSuccess" style="display:none; text-align:center; padding:20px 0;">
+            <div style="font-size:2rem; color:#2ECC71; margin-bottom:12px;">✓</div>
+            <h3 style="font-family:var(--font-serif); font-size:1.6rem; color:#ffffff; margin-bottom:8px;">Message Received</h3>
+            <p style="color:var(--text-secondary); margin-bottom:20px;">Thank you for reaching out. I will be in touch within 24 hours.</p>
+            <a href="https://wa.me/254759437978" target="_blank" class="btn-outline">Prefer WhatsApp? Message directly &rarr;</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10. FOOTER -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div>
+          <h3 style="font-family:var(--font-serif); font-size:1.6rem; color:var(--accent-gold); margin-bottom:8px;">James Mbugua</h3>
+          <p style="color:var(--text-secondary);">Building the infrastructure of African excellence.</p>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <a href="#about" style="color:var(--text-secondary); text-decoration:none;">About</a>
+          <a href="#projects" style="color:var(--text-secondary); text-decoration:none;">Projects</a>
+          <a href="#fahari" style="color:var(--text-secondary); text-decoration:none;">Fahari</a>
+          <a href="#writing" style="color:var(--text-secondary); text-decoration:none;">Writing</a>
+          <a href="#contact" style="color:var(--text-secondary); text-decoration:none;">Contact</a>
+        </div>
+        <div>
+          <p style="font-weight:600; color:#ffffff;">Royal Software Solutions</p>
+          <p style="font-family:var(--font-mono); font-size:0.82rem; color:var(--text-muted);">Nakuru, Kenya &middot; 2025</p>
+          <a href="https://www.royalsoftwares.co.ke" target="_blank" style="color:var(--accent-gold); text-decoration:none; display:inline-block; margin-top:8px;">royalsoftwares.co.ke</a>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <span>&copy; 2025 James Mbugua. All rights reserved.</span>
+        <span style="color:var(--accent-gold); font-family:var(--font-serif); font-style:italic;">Built with intention. For Africa.</span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Navbar scroll effect
+    window.addEventListener('scroll', function() {
+      const nav = document.getElementById('navbar');
+      if (window.scrollY > 80) {
+        nav.classList.add('scrolled');
+      } else {
+        nav.classList.remove('scrolled');
+      }
+    });
+  </script>
+</body>
+</html>

@@ -289,3 +289,4 @@ const SummaryCard = ({ label, value, color, icon }) => (
 );
 
 export default ClientBilling;
+

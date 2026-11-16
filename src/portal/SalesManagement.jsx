@@ -1,6 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { apiClient } from '../services/apiClient';
+import GenerateQuotationModal from './document-studio/GenerateQuotationModal';
+import CreateQuotationModal from './document-studio/CreateQuotationModal';
+import ProductsServicesCatalogue from './ProductsServicesCatalogue';
+import SalesOverviewDashboard from './sales/SalesOverviewDashboard';
+import RequestsForQuotationPage from './sales/RequestsForQuotationPage';
+import QuotationsListPage from './sales/QuotationsListPage';
+import ActivitiesFollowupsPage from './sales/ActivitiesFollowupsPage';
+import CommunicationHistoryPage from './sales/CommunicationHistoryPage';
 import {
     Search, Filter, Plus, Users, Building, MonitorSmartphone,
     TrendingUp, DollarSign, Target, Briefcase, ChevronRight,
@@ -35,7 +43,7 @@ const dashboardStats = [
 ];
 
 const SalesManagement = () => {
-    const [searchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
     const view = searchParams.get('view') || 'dashboard';
 
     const [userRole, setUserRole] = useState('Sales Manager'); // Admin, Sales Manager, Sales Agent
@@ -59,7 +67,7 @@ const SalesManagement = () => {
             const [salesResp, customersResp, productsResp, leadsResp, dealsResp, quotesResp, quoteReqsResp, actsResp] = await Promise.all([
                 apiClient.sales.list().catch(() => []),
                 apiClient.clients.list().catch(() => []),
-                apiClient.get('/api/v1/products/').catch(() => []),
+                apiClient.get('/api/v1/royalsoftwares/products/').catch(() => []),
                 apiClient.royalsoftwares.leads.list().catch(() => []),
                 apiClient.royalsoftwares.deals.list().catch(() => []),
                 apiClient.royalsoftwares.quotations.list().catch(() => []),
@@ -229,7 +237,57 @@ const SalesManagement = () => {
             </div>
 
             {/* View Content */}
-            {view === 'dashboard' && <SalesDashboard stats={liveStats} />}
+            {view === 'dashboard' && (
+                <SalesOverviewDashboard 
+                    leads={leads} 
+                    deals={deals} 
+                    quotations={quotations} 
+                    rfqs={quotationRequests} 
+                    onNavigateView={(v) => setSearchParams({ view: v })} 
+                />
+            )}
+
+            {view === 'catalogue' && (
+                <ProductsServicesCatalogue 
+                    products={products} 
+                    onRefresh={loadData} 
+                    loading={loading} 
+                />
+            )}
+
+            {view === 'rfqs' && (
+                <RequestsForQuotationPage 
+                    rfqs={quotationRequests} 
+                    clients={customers} 
+                    products={products} 
+                    onRefresh={loadData} 
+                    loading={loading} 
+                />
+            )}
+
+            {view === 'quotations' && (
+                <QuotationsListPage 
+                    quotations={quotations} 
+                    clients={customers} 
+                    products={products} 
+                    onRefresh={loadData} 
+                    loading={loading} 
+                />
+            )}
+
+            {view === 'activities' && (
+                <ActivitiesFollowupsPage 
+                    activities={activities} 
+                    clients={customers} 
+                    deals={deals} 
+                    onRefresh={loadData} 
+                    loading={loading} 
+                />
+            )}
+
+            {view === 'communications' && (
+                <CommunicationHistoryPage />
+            )}
 
             {view === 'sales_registry' && (
                 showRecordSale ?
@@ -252,10 +310,6 @@ const SalesManagement = () => {
             {view === 'pipeline' && <PipelineBoard deals={deals} stages={pipelineStages} />}
 
             {view === 'deals' && <DealsManagementSection deals={deals} />}
-
-            {view === 'quotations' && <QuotationsSection quotations={quotations} quotationRequests={quotationRequests} />}
-
-            {view === 'activities' && <SalesActivitiesSection activities={activities} />}
 
             {view === 'reports' && <SalesReportsSection />}
 
@@ -456,27 +510,51 @@ const DealsManagementSection = ({ deals }) => (
     </div>
 );
 
-const QuotationsSection = ({ quotations, quotationRequests }) => {
+const QuotationsSection = ({ quotations, quotationRequests, clients = [], products = [], onRefresh }) => {
     const [tab, setTab] = useState('active');
+    const [selectedQuotationForDoc, setSelectedQuotationForDoc] = useState(null);
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [activeRfqForConvert, setActiveRfqForConvert] = useState(null);
+
+    const handleOpenCreateNew = () => {
+        setActiveRfqForConvert(null);
+        setShowCreateModal(true);
+    };
+
+    const handleConvertRfq = (rfq) => {
+        setActiveRfqForConvert(rfq);
+        setShowCreateModal(true);
+    };
+
+    const handleQuotationCreated = (newQuotation) => {
+        if (onRefresh) onRefresh();
+        if (newQuotation) {
+            setSelectedQuotationForDoc(newQuotation);
+        }
+    };
 
     return (
         <div className="portal-content-card animations-fade-in" style={{ padding: '25px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
                 <div style={{ display: 'flex', gap: '20px' }}>
                     <h3 
-                        style={{ margin: 0, cursor: 'pointer', color: tab === 'active' ? '#1e293b' : '#94a3b8', borderBottom: tab === 'active' ? '2px solid #6366f1' : 'none', paddingBottom: '5px' }}
+                        style={{ margin: 0, cursor: 'pointer', color: tab === 'active' ? '#1e293b' : '#94a3b8', borderBottom: tab === 'active' ? '2px solid #0f766e' : 'none', paddingBottom: '5px' }}
                         onClick={() => setTab('active')}
                     >
                         Sales Quotations
                     </h3>
                     <h3 
-                        style={{ margin: 0, cursor: 'pointer', color: tab === 'requests' ? '#1e293b' : '#94a3b8', borderBottom: tab === 'requests' ? '2px solid #6366f1' : 'none', paddingBottom: '5px' }}
+                        style={{ margin: 0, cursor: 'pointer', color: tab === 'requests' ? '#1e293b' : '#94a3b8', borderBottom: tab === 'requests' ? '2px solid #0f766e' : 'none', paddingBottom: '5px' }}
                         onClick={() => setTab('requests')}
                     >
-                        Quotation Requests
+                        Quotation Requests (RFQs)
                     </h3>
                 </div>
-                {tab === 'active' && <button className="btn-primary" style={{ padding: '10px 20px', borderRadius: '10px' }}><Plus size={18} style={{ marginRight: '8px' }} /> New Quotation</button>}
+                {tab === 'active' && (
+                    <button onClick={handleOpenCreateNew} className="btn-primary" style={{ padding: '10px 20px', borderRadius: '10px' }}>
+                        <Plus size={18} style={{ marginRight: '8px' }} /> New Quotation
+                    </button>
+                )}
             </div>
 
             {tab === 'active' && (
@@ -485,8 +563,30 @@ const QuotationsSection = ({ quotations, quotationRequests }) => {
                         <thead><tr style={{ borderBottom: '2px solid #f1f5f9' }}><th style={{ padding: '15px' }}>Quotation #</th><th style={{ padding: '15px' }}>Client</th><th style={{ padding: '15px' }}>Date</th><th style={{ padding: '15px' }}>Expiry</th><th style={{ padding: '15px' }}>Total Amount</th><th style={{ padding: '15px' }}>Status</th><th style={{ padding: '15px' }}>Actions</th></tr></thead>
                         <tbody>{quotations.map((qt) => (
                             <tr key={qt.id} style={{ borderBottom: '1px solid #f1f5f9' }} className="hover-bg-light">
-                                <td style={{ padding: '15px', fontWeight: 600 }}>{qt.quotation_number}</td><td style={{ padding: '15px' }}>{qt.client_name}</td><td style={{ padding: '15px', color: '#64748b' }}>{qt.issue_date}</td><td style={{ padding: '15px', color: '#64748b' }}>{qt.expiry_date}</td><td style={{ padding: '15px', fontWeight: 700 }}>{qt.total_amount}</td>
-                                <td style={{ padding: '15px' }}><QuotationStatusBadge status={qt.status} /></td><td style={{ padding: '15px' }}><div style={{ display: 'flex', gap: '8px' }}><button style={{ background: '#f1f5f9', border: 'none', padding: '6px', borderRadius: '8px' }}><Download size={16} /></button><button style={{ background: '#f1f5f9', border: 'none', padding: '6px', borderRadius: '8px' }}><Mail size={16} /></button></div></td>
+                                <td style={{ padding: '15px', fontWeight: 600 }}>{qt.quotation_number}</td>
+                                <td style={{ padding: '15px' }}>{qt.client_name}</td>
+                                <td style={{ padding: '15px', color: '#64748b' }}>{qt.issue_date}</td>
+                                <td style={{ padding: '15px', color: '#64748b' }}>{qt.expiry_date || '30 Days'}</td>
+                                <td style={{ padding: '15px', fontWeight: 700, color: '#0f766e' }}>KES {Number(qt.total_amount || 0).toLocaleString()}</td>
+                                <td style={{ padding: '15px' }}><QuotationStatusBadge status={qt.status} /></td>
+                                <td style={{ padding: '15px' }}>
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                        <button 
+                                            onClick={() => setSelectedQuotationForDoc(qt)} 
+                                            title="Generate / Download Official Quotation Document" 
+                                            style={{ background: '#f0fdfa', color: '#0f766e', border: '1px solid #ccfbf1', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', fontWeight: 600 }}
+                                        >
+                                            <FileText size={14} /> PDF
+                                        </button>
+                                        <button 
+                                            onClick={() => setSelectedQuotationForDoc(qt)} 
+                                            title="Send via Email or WhatsApp" 
+                                            style={{ background: '#f1f5f9', border: 'none', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: '#475569' }}
+                                        >
+                                            <Mail size={14} /> Dispatch
+                                        </button>
+                                    </div>
+                                </td>
                             </tr>
                         ))}</tbody>
                     </table>
@@ -503,12 +603,35 @@ const QuotationsSection = ({ quotations, quotationRequests }) => {
                                 <td style={{ padding: '15px', fontWeight: 600 }}>{req.client_name}</td>
                                 <td style={{ padding: '15px' }}>{req.subject}</td>
                                 <td style={{ padding: '15px', color: '#64748b', fontSize: '13px' }}>{req.description?.substring(0, 50)}{req.description?.length > 50 ? '...' : ''}</td>
-                                <td style={{ padding: '15px' }}><span style={{ padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, background: req.status === 'PENDING' ? '#fef3c7' : '#f1f5f9', color: req.status === 'PENDING' ? '#d97706' : '#64748b' }}>{req.status}</span></td>
+                                <td style={{ padding: '15px' }}>
+                                    <span style={{
+                                        padding: '4px 12px',
+                                        borderRadius: '20px',
+                                        fontSize: '11px',
+                                        fontWeight: 700,
+                                        background: req.status === 'PENDING' ? '#fef3c7' : req.status === 'RESPONDED' ? '#dcfce7' : '#f1f5f9',
+                                        color: req.status === 'PENDING' ? '#d97706' : req.status === 'RESPONDED' ? '#15803d' : '#64748b'
+                                    }}>
+                                        {req.status === 'RESPONDED' ? 'QUOTED' : req.status}
+                                    </span>
+                                </td>
                                 <td style={{ padding: '15px' }}>
                                     {req.status === 'PENDING' ? (
-                                        <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '6px' }}>Respond</button>
+                                        <button 
+                                            onClick={() => handleConvertRfq(req)} 
+                                            className="btn-primary" 
+                                            style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '6px' }}
+                                        >
+                                            Convert to Quotation
+                                        </button>
                                     ) : (
-                                        <button className="btn-text" style={{ padding: '6px 12px', fontSize: '12px' }}>View Details</button>
+                                        <button 
+                                            onClick={() => handleConvertRfq(req)} 
+                                            className="btn-text" 
+                                            style={{ padding: '6px 12px', fontSize: '12px' }}
+                                        >
+                                            Re-quote / Edit
+                                        </button>
                                     )}
                                 </td>
                             </tr>
@@ -516,6 +639,29 @@ const QuotationsSection = ({ quotations, quotationRequests }) => {
                     </table>
                 </div>
             )}
+
+            {/* Document Design Studio Generator & Dispatch Modal */}
+            <GenerateQuotationModal
+                quotation={selectedQuotationForDoc}
+                isOpen={Boolean(selectedQuotationForDoc)}
+                onClose={() => setSelectedQuotationForDoc(null)}
+                onGenerated={() => {
+                    if (onRefresh) onRefresh();
+                }}
+            />
+
+            {/* Create & Convert Quotation Modal */}
+            <CreateQuotationModal
+                isOpen={showCreateModal}
+                onClose={() => {
+                    setShowCreateModal(false);
+                    setActiveRfqForConvert(null);
+                }}
+                onCreated={handleQuotationCreated}
+                clients={clients}
+                products={products}
+                rfq={activeRfqForConvert}
+            />
         </div>
     );
 };
@@ -525,21 +671,303 @@ const QuotationStatusBadge = ({ status }) => {
     const s = (status || '').toUpperCase();
     if (s === 'ACCEPTED') { bg = '#ecfdf5'; color = '#10b981'; } else if (s === 'SENT') { bg = '#eff6ff'; color = '#3b82f6'; } else if (s === 'DRAFT') { bg = '#f8fafc'; color = '#94a3b8'; } else { bg = '#fef2f2'; color = '#ef4444'; }
     return <span style={{ padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, background: bg, color: color }}>{status}</span>;
-}
+};
 
-const SalesActivitiesSection = ({ activities }) => (
-    <div className="portal-content-card animations-fade-in" style={{ padding: '25px' }}>
-        <h3 style={{ margin: '0 0 25px 0' }}>Sales Activity Log</h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-            {activities.map(act => (
-                <div key={act.id} style={{ display: 'flex', gap: '15px', padding: '15px', background: '#f8fafc', borderRadius: '12px' }}>
-                    <div style={{ padding: '10px', borderRadius: '10px', background: 'white', border: '1px solid #e2e8f0', color: '#6366f1' }}>{act.activity_type === 'CALL' ? <Phone size={18} /> : act.activity_type === 'MEETING' ? <Users size={18} /> : <Mail size={18} />}</div>
-                    <div style={{ flex: 1 }}><div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontWeight: 700 }}>{act.activity_type} with {act.client_name}</span><span style={{ fontSize: '11px', color: '#94a3b8' }}>{act.date} • {act.time}</span></div><p style={{ margin: '5px 0', fontSize: '13px', color: '#64748b' }}>{act.notes}</p><div style={{ fontSize: '12px', color: '#6366f1', fontWeight: 600 }}>By {act.agent_name || 'Agent'}</div></div>
+const SalesActivitiesSection = ({ activities = [], clients = [], deals = [], quotations = [], onRefresh }) => {
+    const [filterType, setFilterType] = useState('ALL');
+    const [selectedTab, setSelectedTab] = useState('activities'); // 'activities' | 'communications'
+    const [commLogs, setCommLogs] = useState([]);
+    const [loadingComm, setLoadingComm] = useState(false);
+    const [showLogModal, setShowLogModal] = useState(false);
+    const [newType, setNewType] = useState('CALL');
+    const [newClient, setNewClient] = useState('');
+    const [newDeal, setNewDeal] = useState('');
+    const [newDate, setNewDate] = useState(new Date().toISOString().split('T')[0]);
+    const [newDueDate, setNewDueDate] = useState('');
+    const [newNotes, setNewNotes] = useState('');
+    const [savingActivity, setSavingActivity] = useState(false);
+
+    useEffect(() => {
+        if (selectedTab === 'communications') {
+            loadCommunications();
+        }
+    }, [selectedTab]);
+
+    const loadCommunications = async () => {
+        try {
+            setLoadingComm(true);
+            const data = await apiClient.get('/api/v1/clients_management/communications/');
+            setCommLogs(Array.isArray(data) ? data : data.results || []);
+        } catch (err) {
+            console.error('Failed to load communication logs:', err);
+        } finally {
+            setLoadingComm(false);
+        }
+    };
+
+    const handleToggleStatus = async (actId) => {
+        try {
+            await apiClient.royalsoftwares.activities.toggleStatus(actId);
+            if (onRefresh) onRefresh();
+        } catch (err) {
+            console.error('Failed to toggle activity status:', err);
+        }
+    };
+
+    const handleCreateActivity = async (e) => {
+        e.preventDefault();
+        try {
+            setSavingActivity(true);
+            const payload = {
+                activity_type: newType,
+                client: newClient || null,
+                deal: newDeal || null,
+                date: newDate,
+                due_date: newDueDate || null,
+                notes: newNotes,
+                status: 'PENDING'
+            };
+            await apiClient.royalsoftwares.activities.create(payload);
+            setShowLogModal(false);
+            setNewNotes('');
+            if (onRefresh) onRefresh();
+        } catch (err) {
+            alert(err.message || 'Failed to save activity');
+        } finally {
+            setSavingActivity(false);
+        }
+    };
+
+    const filteredActivities = activities.filter(act => {
+        if (filterType === 'ALL') return true;
+        return act.activity_type === filterType;
+    });
+
+    return (
+        <div className="portal-content-card animations-fade-in" style={{ padding: '25px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
+                <div style={{ display: 'flex', gap: '20px' }}>
+                    <h3 
+                        style={{ margin: 0, cursor: 'pointer', color: selectedTab === 'activities' ? '#1e293b' : '#94a3b8', borderBottom: selectedTab === 'activities' ? '2px solid #0f766e' : 'none', paddingBottom: '6px' }}
+                        onClick={() => setSelectedTab('activities')}
+                    >
+                        Sales Follow-ups & Reminders
+                    </h3>
+                    <h3 
+                        style={{ margin: 0, cursor: 'pointer', color: selectedTab === 'communications' ? '#1e293b' : '#94a3b8', borderBottom: selectedTab === 'communications' ? '2px solid #0f766e' : 'none', paddingBottom: '6px' }}
+                        onClick={() => setSelectedTab('communications')}
+                    >
+                        Unified Communication History
+                    </h3>
                 </div>
-            ))}
+
+                {selectedTab === 'activities' && (
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                            {['ALL', 'CALL', 'MEETING', 'EMAIL', 'WHATSAPP'].map(t => (
+                                <button
+                                    key={t}
+                                    onClick={() => setFilterType(t)}
+                                    style={{
+                                        padding: '4px 10px',
+                                        borderRadius: '15px',
+                                        fontSize: '11px',
+                                        fontWeight: 600,
+                                        border: '1px solid #e2e8f0',
+                                        background: filterType === t ? '#0f766e' : '#ffffff',
+                                        color: filterType === t ? '#ffffff' : '#64748b',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    {t}
+                                </button>
+                            ))}
+                        </div>
+                        <button
+                            onClick={() => setShowLogModal(true)}
+                            className="btn-primary"
+                            style={{ padding: '6px 14px', borderRadius: '8px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                        >
+                            <Plus size={14} /> Log Follow-up
+                        </button>
+                    </div>
+                )}
+            </div>
+
+            {selectedTab === 'communications' ? (
+                <div>
+                    {loadingComm ? (
+                        <div style={{ textAlign: 'center', padding: '2rem 0', color: '#64748b' }}>
+                            Loading unified communication records...
+                        </div>
+                    ) : commLogs.length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: '2.5rem 0', color: '#64748b' }}>
+                            No email or message dispatches recorded yet.
+                        </div>
+                    ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            {commLogs.map(log => (
+                                <div key={log.id} style={{ display: 'flex', gap: '15px', padding: '15px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
+                                    <div style={{
+                                        padding: '10px',
+                                        borderRadius: '10px',
+                                        background: 'white',
+                                        border: '1px solid #e2e8f0',
+                                        color: log.channel === 'EMAIL' ? '#2563eb' : log.channel === 'WHATSAPP' ? '#16a34a' : '#d97706',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        width: '38px',
+                                        height: '38px'
+                                    }}>
+                                        {log.channel === 'EMAIL' ? <Mail size={18} /> : log.channel === 'WHATSAPP' ? <MessageSquare size={18} /> : <Phone size={18} />}
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <span style={{ fontWeight: 700, color: '#0f172a', fontSize: '13.5px' }}>
+                                                {log.subject || `${log.channel} dispatch to ${log.client_name}`}
+                                            </span>
+                                            <span style={{
+                                                fontSize: '11px',
+                                                fontWeight: 700,
+                                                padding: '2px 8px',
+                                                borderRadius: '12px',
+                                                background: log.status === 'SENT' || log.status === 'DELIVERED' ? '#dcfce7' : log.status === 'FAILED' ? '#fee2e2' : '#f1f5f9',
+                                                color: log.status === 'SENT' || log.status === 'DELIVERED' ? '#15803d' : log.status === 'FAILED' ? '#b91c1c' : '#64748b'
+                                            }}>
+                                                {log.status}
+                                            </span>
+                                        </div>
+                                        <p style={{ margin: '6px 0', fontSize: '12.5px', color: '#475569', whiteSpace: 'pre-line' }}>
+                                            {log.message}
+                                        </p>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', color: '#94a3b8' }}>
+                                            <span>Recipient: {log.client_name} • Dispatched by {log.sender_name || 'Staff'}</span>
+                                            <span>{new Date(log.created_on).toLocaleString()}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {filteredActivities.length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: '2rem 0', color: '#64748b' }}>
+                            No follow-up activities recorded under this filter.
+                        </div>
+                    ) : (
+                        filteredActivities.map(act => (
+                            <div key={act.id} style={{ display: 'flex', gap: '15px', padding: '15px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #f1f5f9', alignItems: 'flex-start' }}>
+                                <div style={{
+                                    padding: '10px',
+                                    borderRadius: '10px',
+                                    background: 'white',
+                                    border: '1px solid #e2e8f0',
+                                    color: act.activity_type === 'CALL' ? '#2563eb' : act.activity_type === 'MEETING' ? '#7c3aed' : act.activity_type === 'WHATSAPP' ? '#16a34a' : '#0f766e'
+                                }}>
+                                    {act.activity_type === 'CALL' ? <Phone size={18} /> : act.activity_type === 'MEETING' ? <Users size={18} /> : act.activity_type === 'WHATSAPP' ? <MessageSquare size={18} /> : <Mail size={18} />}
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <div>
+                                            <span style={{ fontWeight: 700, color: '#0f172a' }}>{act.activity_type}: {act.client_name || 'Client Follow-up'}</span>
+                                            {act.deal_name && <span style={{ fontSize: '12px', color: '#64748b', marginLeft: '8px' }}>({act.deal_name})</span>}
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                            <span style={{
+                                                fontSize: '11px',
+                                                fontWeight: 700,
+                                                padding: '2px 8px',
+                                                borderRadius: '12px',
+                                                background: act.status === 'COMPLETED' ? '#dcfce7' : '#fef3c7',
+                                                color: act.status === 'COMPLETED' ? '#15803d' : '#d97706'
+                                            }}>
+                                                {act.status || 'PENDING'}
+                                            </span>
+                                            <button
+                                                onClick={() => handleToggleStatus(act.id)}
+                                                className="btn-secondary-outline"
+                                                style={{ fontSize: '11px', padding: '2px 8px', cursor: 'pointer' }}
+                                                title="Toggle completion status"
+                                            >
+                                                {act.status === 'COMPLETED' ? 'Re-open' : 'Mark Done'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p style={{ margin: '6px 0', fontSize: '13px', color: '#475569' }}>{act.notes || 'No specific agenda remarks recorded.'}</p>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', color: '#94a3b8' }}>
+                                        <span>Logged by: {act.agent_name || 'Staff'} • Date: {act.date} {act.time || ''}</span>
+                                        {act.due_date && <span style={{ color: '#d97706', fontWeight: 600 }}>Due: {act.due_date}</span>}
+                                    </div>
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
+            )}
+
+            {/* Quick Activity Modal */}
+            {showLogModal && (
+                <div className="doc-modal-overlay" onClick={() => setShowLogModal(false)}>
+                    <div className="doc-modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px' }}>
+                        <div className="doc-modal-header">
+                            <h3 style={{ margin: 0, fontSize: '1rem' }}>Log Sales Follow-up Activity</h3>
+                            <button onClick={() => setShowLogModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={18} /></button>
+                        </div>
+                        <form onSubmit={handleCreateActivity}>
+                            <div className="doc-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                                <div className="prop-form-group">
+                                    <label>Activity Channel / Type</label>
+                                    <select value={newType} onChange={e => setNewType(e.target.value)} className="prop-input">
+                                        <option value="CALL">Phone Call</option>
+                                        <option value="MEETING">Client Meeting</option>
+                                        <option value="WHATSAPP">WhatsApp Follow-up</option>
+                                        <option value="EMAIL">Email Dispatch</option>
+                                        <option value="NOTE">Internal Milestone Note</option>
+                                    </select>
+                                </div>
+                                <div className="prop-form-group">
+                                    <label>Client</label>
+                                    <select value={newClient} onChange={e => setNewClient(e.target.value)} className="prop-input">
+                                        <option value="">-- Select Client --</option>
+                                        {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                    </select>
+                                </div>
+                                <div className="prop-form-group">
+                                    <label>Related Deal (Optional)</label>
+                                    <select value={newDeal} onChange={e => setNewDeal(e.target.value)} className="prop-input">
+                                        <option value="">-- None --</option>
+                                        {deals.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                                    </select>
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                                    <div className="prop-form-group">
+                                        <label>Date Conducted</label>
+                                        <input type="date" value={newDate} onChange={e => setNewDate(e.target.value)} className="prop-input" required />
+                                    </div>
+                                    <div className="prop-form-group">
+                                        <label>Follow-up Due Date</label>
+                                        <input type="date" value={newDueDate} onChange={e => setNewDueDate(e.target.value)} className="prop-input" />
+                                    </div>
+                                </div>
+                                <div className="prop-form-group">
+                                    <label>Meeting Remarks & Action Items</label>
+                                    <textarea value={newNotes} onChange={e => setNewNotes(e.target.value)} rows={3} className="prop-input" style={{ resize: 'vertical' }} required />
+                                </div>
+                            </div>
+                            <div className="doc-modal-footer">
+                                <button type="button" onClick={() => setShowLogModal(false)} className="btn-secondary-outline">Cancel</button>
+                                <button type="submit" disabled={savingActivity} className="btn-primary-teal">{savingActivity ? 'Saving...' : 'Save Activity'}</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
-    </div>
-);
+    );
+};
 
 const SalesReportsSection = () => (
     <div className="animations-fade-in">

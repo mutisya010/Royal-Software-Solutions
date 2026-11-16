@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
     Ticket, Clock, CheckCircle, AlertCircle, MessageSquare,
     Search, Filter, Plus, ChevronRight, MoreVertical,
@@ -54,7 +55,15 @@ const kbArticles = [
 ];
 
 const CustomerSupport = () => {
-    const [view, setView] = useState('dashboard'); // dashboard, list, details, creation, kb, reports
+    const [searchParams, setSearchParams] = useSearchParams();
+    const urlView = searchParams.get('view');
+    const [view, setView] = useState(urlView || 'dashboard'); // dashboard, list, details, creation, kb, reports
+
+    useEffect(() => {
+        if (urlView && urlView !== view) {
+            setView(urlView);
+        }
+    }, [urlView]);
     const [userRole, setUserRole] = useState('Admin'); // Admin, Staff, Client
     const [activeTicketId, setActiveTicketId] = useState(null);
 

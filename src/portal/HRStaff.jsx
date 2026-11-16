@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { apiClient } from '../services/apiClient';
 import {
     Users, UserPlus, Building, Clock, Calendar, DollarSign,
@@ -83,7 +84,15 @@ const attendanceData = [
 ];
 
 const HRStaff = () => {
-    const [view, setView] = useState('dashboard'); // dashboard, employees, departments, attendance, leave, payroll, performance
+    const [searchParams, setSearchParams] = useSearchParams();
+    const urlView = searchParams.get('view');
+    const [view, setView] = useState(urlView || 'dashboard'); // dashboard, employees, departments, attendance, leave, payroll, performance
+
+    useEffect(() => {
+        if (urlView && urlView !== view) {
+            setView(urlView);
+        }
+    }, [urlView]);
     const [userRole, setUserRole] = useState('HR Manager'); // Admin, HR Manager, Staff
     const [showAddEmployee, setShowAddEmployee] = useState(false);
     const [employees, setEmployees] = useState([]);

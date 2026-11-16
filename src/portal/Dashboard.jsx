@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Responsive, WidthProvider } from 'react-grid-layout/legacy';
-import 'react-grid-layout/css/styles.css';
-import 'react-resizable/css/styles.css';
+import { useNavigate } from 'react-router-dom';
 import {
     PieChart, Pie, Cell, Tooltip as RechartsTooltip, Legend,
     AreaChart, Area, XAxis, YAxis, CartesianGrid,
@@ -9,63 +7,91 @@ import {
 } from 'recharts';
 import {
     Briefcase, Users, DollarSign, Headset, TrendingUp, TrendingDown,
-    Activity, FileText, AlertCircle, FilePlus, UserPlus, Receipt, CreditCard, Video
+    Activity, FileText, AlertCircle, CheckCircle2, Clock,
+    FilePlus, UserPlus, Receipt, CreditCard, Video, ExternalLink,
+    ChevronRight, ArrowUpRight
 } from 'lucide-react';
 import { apiClient } from '../services/apiClient';
 import { useCompany } from '../services/CompanyContext';
 
-const ResponsiveGridLayout = WidthProvider(Responsive);
-
-// --- Default/Dummy fallback Data ---
+// --- Default / Fallback Data ---
 const defaultUser = { name: 'Administrator', role: 'Staff', pendingTasks: 3, supportTickets: 2 };
 
 const defaultStats = [
-    { title: 'Total Revenue', value: 'KES 0.00', trend: '0%', isUp: true, icon: <DollarSign size={24} />, color: 'var(--primary-color)' },
-    { title: 'Total Clients', value: '0', trend: '0%', isUp: true, icon: <Users size={24} />, color: '#10b981' },
-    { title: 'Inventory Value', value: 'KES 0.00', trend: '0%', isUp: true, icon: <Briefcase size={24} />, color: '#f59e0b' },
-    { title: 'Open Tickets', value: '0', trend: '0%', isUp: false, icon: <Headset size={24} />, color: '#ef4444' },
+    { title: 'Total Revenue', value: 'KES 0.00', trend: '0%', isUp: true, icon: <DollarSign size={22} />, color: 'var(--primary-color)' },
+    { title: 'Transactions', value: '0', trend: '0%', isUp: true, icon: <Users size={22} />, color: '#10b981' },
+    { title: 'Stock Value', value: 'KES 0.00', trend: '0 items', isUp: true, icon: <Briefcase size={22} />, color: '#f59e0b' },
+    { title: 'Open Tickets', value: '0', trend: '0 pending', isUp: false, icon: <Headset size={22} />, color: '#ef4444' },
 ];
 
 const defaultRevenueData = [
-    { month: 'Jan', revenue: 4000, expenses: 2400 },
-    { month: 'Feb', revenue: 3000, expenses: 1398 },
-    { month: 'Mar', revenue: 2000, expenses: 9800 },
-    { month: 'Apr', revenue: 2780, expenses: 3908 },
-    { month: 'May', revenue: 1890, expenses: 4800 },
-    { month: 'Jun', revenue: 2390, expenses: 3800 },
+    { label: 'Day 1', total: 0 },
+    { label: 'Day 5', total: 0 },
+    { label: 'Day 10', total: 0 },
+    { label: 'Day 15', total: 0 },
 ];
 
-const COLORS = ['#10b981', '#6366f1', '#f43f5e', '#fbbf24'];
+const COLORS = ['#16657a', '#10b981', '#f59e0b', '#8b5cf6', '#ec5224'];
 
-// --- Sub-Components (Widgets) ---
+// --- Sub-Components ---
 
+/**
+ * Compact, modern executive welcome banner with session & connection telemetry
+ */
 const WelcomeSection = ({ user, companyName }) => {
-    const today = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const today = new Date().toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+    });
+
     return (
-        <div className="dashboard-welcome" style={{ padding: '20px', background: 'linear-gradient(135deg, var(--primary-color) 0%, #0d3c49 100%)', color: 'white', borderRadius: '12px', marginBottom: '20px' }}>
-            <h1 style={{ fontSize: '24px', margin: '0 0 10px 0' }}>Welcome back, {user.full_name || user.username || user.name}.</h1>
-            <p style={{ margin: '0 0 5px 0', opacity: 0.9 }}>{today} | {companyName} • Session: Active</p>
-            <p className="welcome-stats" style={{ margin: 0, fontWeight: 500, display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <AlertCircle size={16} />
-                You are connected to the live enterprise backend database.
-            </p>
+        <div className="dashboard-welcome-banner">
+            <div className="welcome-banner-left">
+                <div className="welcome-heading-row">
+                    <h1 className="welcome-title">
+                        Welcome back, {user.full_name || user.username || user.name || 'Administrator'}
+                    </h1>
+                    <span className="welcome-company-badge">{companyName || 'Royal Software Solutions'}</span>
+                </div>
+                <p className="welcome-date-text">{today}</p>
+            </div>
+
+            <div className="welcome-banner-right">
+                <div className="connection-telemetry-chip">
+                    <span className="telemetry-live-dot" />
+                    <span className="telemetry-text">Enterprise Backend • Active Session</span>
+                </div>
+            </div>
         </div>
     );
 };
 
+/**
+ * KPI Statistics Cards Grid
+ */
 const QuickStats = ({ stats }) => (
-    <div className="stats-grid-responsive" style={{ gap: '20px', height: '100%' }}>
+    <div className="stats-grid-responsive">
         {stats.map((stat, i) => (
-            <div key={i} className="portal-content-card stat-card-modern" style={{ display: 'flex', alignItems: 'center', padding: '20px', justifyContent: 'space-between', background: 'white', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
-                <div>
-                    <h4 style={{ margin: '0 0 5px 0', color: '#64748b', fontSize: '14px', fontWeight: 500 }}>{stat.title}</h4>
-                    <h2 style={{ margin: '0 0 5px 0', fontSize: '22px', fontWeight: 700, color: '#1e293b' }}>{stat.value}</h2>
-                    <span style={{ fontSize: '12px', color: stat.isUp ? '#10b981' : '#ef4444', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        {stat.isUp ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-                        {stat.trend} growth
-                    </span>
+            <div key={i} className="portal-content-card stat-card-modern">
+                <div className="stat-card-body">
+                    <span className="stat-card-title">{stat.title}</span>
+                    <h2 className="stat-card-value">{stat.value}</h2>
+                    <div className="stat-card-footer">
+                        <span className={`stat-trend-pill ${stat.isUp ? 'trend-up' : 'trend-neutral'}`}>
+                            {stat.isUp ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
+                            {stat.trend}
+                        </span>
+                    </div>
                 </div>
-                <div style={{ padding: '15px', borderRadius: '50%', backgroundColor: `${stat.color}15`, color: stat.color || '#6366f1' }}>
+                <div
+                    className="stat-card-icon-bubble"
+                    style={{
+                        backgroundColor: `${stat.color}15`,
+                        color: stat.color || 'var(--primary-color)'
+                    }}
+                >
                     {stat.icon}
                 </div>
             </div>
@@ -73,222 +99,272 @@ const QuickStats = ({ stats }) => (
     </div>
 );
 
-const quickActionItems = [
-    { label: 'Create Project', icon: <FilePlus size={18} />, color: '#3b82f6', bg: '#eff6ff' },
-    { label: 'Add Client', icon: <UserPlus size={18} />, color: '#10b981', bg: '#ecfdf5' },
-    { label: 'Create Invoice', icon: <Receipt size={18} />, color: '#6366f1', bg: '#e0e7ff' },
-    { label: 'Record Payment', icon: <CreditCard size={18} />, color: '#f59e0b', bg: '#fffbeb' },
-    { label: 'New Ticket', icon: <Headset size={18} />, color: '#ef4444', bg: '#fef2f2' },
-    { label: 'Schedule Meeting', icon: <Video size={18} />, color: '#8b5cf6', bg: '#f5f3ff' },
-];
+/**
+ * Primary Left Panel: Financial Overview Area Chart
+ */
+const FinancialOverview = ({ revenueData, avgSale, growthPct }) => {
+    const hasData = revenueData && revenueData.length > 0 && revenueData.some(d => d.total > 0);
 
-const QuickActions = () => (
-    <div className="portal-content-card" style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'white', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 20px 10px 20px' }}>
-            <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 600, color: '#1e293b' }}>Quick Actions</h3>
-            <span style={{ fontSize: '11px', color: '#64748b', background: '#f1f5f9', padding: '2px 8px', borderRadius: '12px' }}>6 Actions</span>
-        </div>
-        <div className="quick-actions-grid" style={{ gap: '12px', padding: '10px 20px 20px 20px', flex: 1 }}>
-            {quickActionItems.map((action, i) => (
-                <button
-                    key={i}
-                    className="quick-action-btn"
-                    style={{
-                        border: '1px solid #f1f5f9',
-                        background: 'white',
-                        padding: '12px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '12px',
-                        textAlign: 'left',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
-                        flexDirection: 'row',
-                        borderRadius: '8px',
-                        cursor: 'pointer'
-                    }}
-                >
-                    <div style={{
-                        width: '36px', height: '36px', borderRadius: '10px',
-                        backgroundColor: action.bg, color: action.color,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        flexShrink: 0
-                    }}>
-                        {action.icon}
-                    </div>
-                    <span style={{ fontSize: '13px', fontWeight: 500, color: '#475569', lineHeight: 1.2 }}>{action.label}</span>
-                </button>
-            ))}
-        </div>
-    </div>
-);
-
-const ActivityFeed = ({ sales }) => (
-    <div className="portal-content-card" style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'white', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
-        <h3 style={{ margin: '0', padding: '20px', borderBottom: '1px solid #f1f5f9', fontSize: '1.1rem', fontWeight: 600 }}>Recent Activity Log</h3>
-        <div style={{ padding: '20px', overflowY: 'auto', flex: 1 }}>
-            {sales && sales.length > 0 ? (
-                sales.map((sale, idx) => (
-                    <div key={idx} style={{ display: 'flex', gap: '15px', marginBottom: '20px', alignItems: 'flex-start' }}>
-                        <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#10b981', marginTop: '6px' }} />
-                        <div>
-                            <p style={{ margin: '0 0 4px 0', fontSize: '14px', color: '#334155' }}>
-                                Recorded sale <strong>#{sale.sale_number}</strong> for <strong>KES {parseFloat(sale.total).toLocaleString()}</strong>
-                            </p>
-                            <span style={{ fontSize: '12px', color: '#64748b' }}>
-                                Method: {sale.payment_method} • Date: {new Date(sale.sale_date).toLocaleDateString()}
-                            </span>
-                        </div>
-                    </div>
-                ))
-            ) : (
-                <div style={{ color: '#64748b', fontSize: '14px', textAlign: 'center', padding: '20px' }}>No recent activities found.</div>
-            )}
-        </div>
-    </div>
-);
-
-const ProjectOverview = ({ projects }) => {
-    const statusData = [
-        { name: 'Completed', value: projects.filter(p => p.status === 'completed').length || 1 },
-        { name: 'Active', value: projects.filter(p => p.status === 'active').length || 2 }
-    ];
-    
     return (
-        <div className="portal-content-card" style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'white', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
-            <h3 style={{ margin: '0', padding: '20px', borderBottom: '1px solid #f1f5f9', fontSize: '1.1rem', fontWeight: 600 }}>Project Overview</h3>
-            <div style={{ flex: 1, padding: '20px', display: 'flex', flexDirection: 'column' }}>
-                <div style={{ height: '160px', width: '100%' }}>
-                    <ResponsiveContainer>
-                        <PieChart>
-                            <Pie data={statusData} innerRadius={50} outerRadius={65} paddingAngle={8} dataKey="value" stroke="none">
-                                {statusData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
-                            </Pie>
-                            <RechartsTooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }} />
-                            <Legend iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
-                        </PieChart>
+        <div className="portal-content-card workspace-card">
+            <div className="workspace-card-header">
+                <div>
+                    <h3 className="workspace-card-title">Financial Overview</h3>
+                    <p className="workspace-card-subtitle">Daily sales trend & revenue velocity</p>
+                </div>
+                <div className="workspace-card-badge">
+                    <Clock size={12} />
+                    <span>Last 15 Days</span>
+                </div>
+            </div>
+
+            <div className="financial-chart-container">
+                <div style={{ height: '260px', width: '100%' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={revenueData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                            <defs>
+                                <linearGradient id="colorSalesRevenue" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="var(--primary-color)" stopOpacity={0.25} />
+                                    <stop offset="95%" stopColor="var(--primary-color)" stopOpacity={0.0} />
+                                </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                            <XAxis
+                                dataKey="label"
+                                axisLine={false}
+                                tickLine={false}
+                                tick={{ fontSize: 11, fill: '#94a3b8' }}
+                                dy={8}
+                            />
+                            <YAxis
+                                axisLine={false}
+                                tickLine={false}
+                                tick={{ fontSize: 11, fill: '#94a3b8' }}
+                                tickFormatter={(val) => val >= 1000 ? `${(val / 1000).toFixed(0)}k` : val}
+                                dx={-5}
+                            />
+                            <RechartsTooltip
+                                formatter={(value) => [`KES ${Number(value).toLocaleString()}`, 'Daily Sales']}
+                                contentStyle={{
+                                    borderRadius: '8px',
+                                    border: '1px solid #e2e8f0',
+                                    boxShadow: '0 8px 16px rgba(0,0,0,0.06)',
+                                    fontSize: '12px'
+                                }}
+                            />
+                            <Area
+                                type="monotone"
+                                dataKey="total"
+                                stroke="var(--primary-color)"
+                                strokeWidth={2.5}
+                                fill="url(#colorSalesRevenue)"
+                                name="Daily Sales"
+                            />
+                        </AreaChart>
                     </ResponsiveContainer>
                 </div>
-                <div style={{ marginTop: '10px', flex: 1, overflowY: 'auto' }}>
-                    <h4 style={{ fontSize: '13px', marginBottom: '8px', color: '#64748b' }}>Active Projects</h4>
-                    {projects.map((p, i) => (
-                        <div key={i} style={{ marginBottom: '10px' }}>
-                            <div style={{ display: 'flex', justifycontent: 'space-between', marginBottom: '3px', fontSize: '12px', justifyContent: 'space-between' }}>
-                                <span style={{ fontWeight: 500 }}>{p.name}</span>
-                                <span style={{ color: '#64748b' }}>{p.progress}%</span>
-                            </div>
-                            <div style={{ height: '6px', background: '#f1f5f9', borderRadius: '3px', overflow: 'hidden' }}>
-                                <div style={{ height: '100%', width: `${p.progress}%`, background: 'var(--primary-color)' }} />
-                            </div>
-                        </div>
-                    ))}
+
+                {!hasData && (
+                    <div className="chart-empty-indicator">
+                        <AlertCircle size={14} />
+                        <span>No sales recorded during this 15-day cycle. Live transactions will chart automatically.</span>
+                    </div>
+                )}
+            </div>
+
+            <div className="financial-metrics-footer">
+                <div className="footer-metric-col">
+                    <span className="footer-metric-label">Average Order Value</span>
+                    <span className="footer-metric-val">KES {Number(avgSale || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div className="footer-metric-divider" />
+                <div className="footer-metric-col">
+                    <span className="footer-metric-label">30-Day Growth Rate</span>
+                    <span className={`footer-metric-val ${(growthPct || 0) >= 0 ? 'text-green' : 'text-red'}`}>
+                        {(growthPct || 0) >= 0 ? `+${growthPct}%` : `${growthPct}%`}
+                    </span>
                 </div>
             </div>
         </div>
     );
 };
 
-const FinancialOverview = ({ revenueData }) => (
-    <div className="portal-content-card" style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'white', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
-        <h3 style={{ margin: '0', padding: '20px', borderBottom: '1px solid #f1f5f9', fontSize: '1.1rem', fontWeight: 600 }}>Financial Overview (Sales Trend)</h3>
-        <div style={{ flex: 1, padding: '20px' }}>
-            <div style={{ height: 'calc(100% - 20px)', width: '100%' }}>
-                <ResponsiveContainer>
-                    <AreaChart data={revenueData}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" strokeOpacity={0.5} />
-                        <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94a3b8' }} dy={10} />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94a3b8' }} dx={-10} />
-                        <RechartsTooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }} />
-                        <Area type="monotone" dataKey="total" stroke="var(--primary-color)" strokeWidth={3} fill="rgba(22, 101, 122, 0.15)" name="Daily Sales" />
-                    </AreaChart>
-                </ResponsiveContainer>
+/**
+ * Secondary Chart: Sales by Product/Service Category
+ */
+const SalesPerformance = ({ categorySales }) => {
+    const hasData = categorySales && categorySales.length > 0;
+
+    return (
+        <div className="portal-content-card workspace-card">
+            <div className="workspace-card-header">
+                <div>
+                    <h3 className="workspace-card-title">Category Revenue</h3>
+                    <p className="workspace-card-subtitle">Contribution across business lines</p>
+                </div>
             </div>
+
+            <div style={{ padding: '16px 20px', height: '240px' }}>
+                {hasData ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={categorySales} layout="vertical" margin={{ top: 5, right: 20, left: 30, bottom: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
+                            <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94a3b8' }} tickFormatter={(val) => val >= 1000 ? `${(val / 1000).toFixed(0)}k` : val} />
+                            <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#475569' }} />
+                            <RechartsTooltip
+                                formatter={(val) => [`KES ${Number(val).toLocaleString()}`, 'Revenue']}
+                                contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }}
+                            />
+                            <Bar dataKey="value" fill="var(--primary-color)" radius={[0, 4, 4, 0]} barSize={16} />
+                        </BarChart>
+                    </ResponsiveContainer>
+                ) : (
+                    <div className="empty-panel-state">
+                        <AlertCircle size={20} color="#94a3b8" />
+                        <p>No category transactions recorded in current period.</p>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+/**
+ * Operational Right Panel: Quick Actions Hub
+ */
+const quickActionItems = [
+    { label: 'Create Project', icon: <FilePlus size={16} />, path: '/portal/admin/projects', color: '#16657a', bg: 'rgba(22, 101, 122, 0.08)' },
+    { label: 'Add Client', icon: <UserPlus size={16} />, path: '/portal/admin/clients', color: '#10b981', bg: '#ecfdf5' },
+    { label: 'Create Invoice', icon: <Receipt size={16} />, path: '/portal/admin/finance', color: '#6366f1', bg: '#e0e7ff' },
+    { label: 'Record Payment', icon: <CreditCard size={16} />, path: '/portal/admin/finance', color: '#f59e0b', bg: '#fffbeb' },
+    { label: 'New Ticket', icon: <Headset size={16} />, path: '/portal/admin/support-tickets', color: '#ef4444', bg: '#fef2f2' },
+    { label: 'Sales Deals', icon: <Video size={16} />, path: '/portal/admin/sales?view=deals', color: '#8b5cf6', bg: '#f5f3ff' },
+];
+
+const QuickActions = ({ navigate }) => (
+    <div className="portal-content-card workspace-card">
+        <div className="workspace-card-header">
+            <div>
+                <h3 className="workspace-card-title">Quick Actions</h3>
+                <p className="workspace-card-subtitle">Frequent operational shortcuts</p>
+            </div>
+        </div>
+        <div className="quick-actions-grid">
+            {quickActionItems.map((action, i) => (
+                <button
+                    key={i}
+                    className="quick-action-item"
+                    onClick={() => navigate(action.path)}
+                >
+                    <div className="quick-action-icon" style={{ backgroundColor: action.bg, color: action.color }}>
+                        {action.icon}
+                    </div>
+                    <span className="quick-action-label">{action.label}</span>
+                    <ArrowUpRight size={14} className="quick-action-arrow" />
+                </button>
+            ))}
         </div>
     </div>
 );
 
-const SalesPerformance = ({ categorySales }) => (
-    <div className="portal-content-card" style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'white', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
-        <h3 style={{ margin: '0', padding: '20px', borderBottom: '1px solid #f1f5f9', fontSize: '1.1rem', fontWeight: 600 }}>Sales by Category</h3>
-        <div style={{ flex: 1, padding: '20px' }}>
-            {categorySales && categorySales.length > 0 ? (
-                <div style={{ height: '100%', width: '100%' }}>
-                    <ResponsiveContainer>
-                        <BarChart data={categorySales}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" strokeOpacity={0.5} />
-                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94a3b8' }} dy={10} />
-                            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94a3b8' }} dx={-10} />
-                            <RechartsTooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }} />
-                            <Bar dataKey="value" fill="#818cf8" name="Revenue (KES)" radius={[6, 6, 0, 0]} barSize={20} />
-                        </BarChart>
-                    </ResponsiveContainer>
-                </div>
+/**
+ * Operational Right Panel: Recent Sales Activity from Enterprise Backend
+ */
+const RecentActivity = ({ sales, navigate }) => (
+    <div className="portal-content-card workspace-card">
+        <div className="workspace-card-header">
+            <div>
+                <h3 className="workspace-card-title">Recent Transactions</h3>
+                <p className="workspace-card-subtitle">Live transactions from sales registry</p>
+            </div>
+            <button
+                className="card-text-link"
+                onClick={() => navigate('/portal/admin/sales?view=sales_registry')}
+            >
+                View All
+            </button>
+        </div>
+
+        <div className="activity-list-container">
+            {sales && sales.length > 0 ? (
+                sales.map((sale, idx) => (
+                    <div key={idx} className="activity-list-item">
+                        <div className="activity-dot" />
+                        <div className="activity-details">
+                            <div className="activity-top-row">
+                                <span className="activity-sale-number">#{sale.sale_number}</span>
+                                <span className="activity-amount">KES {Number(sale.total || 0).toLocaleString()}</span>
+                            </div>
+                            <div className="activity-meta-row">
+                                <span>{sale.payment_method || 'Direct'}</span>
+                                <span>•</span>
+                                <span>{sale.sale_date ? new Date(sale.sale_date).toLocaleDateString() : 'Today'}</span>
+                            </div>
+                        </div>
+                    </div>
+                ))
             ) : (
-                <div style={{ color: '#64748b', fontSize: '14px', textAlign: 'center', padding: '40px 20px' }}>No category sales data to display.</div>
+                <div className="empty-panel-state">
+                    <p>No recent transactions recorded in this period.</p>
+                </div>
             )}
         </div>
     </div>
 );
 
-const SupportTickets = ({ tickets }) => (
-    <div className="portal-content-card" style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'white', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px', borderBottom: '1px solid #f1f5f9' }}>
-            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600 }}>Support Tickets</h3>
-            <button className="btn-primary" style={{ padding: '4px 10px', fontSize: '12px', borderRadius: '6px', cursor: 'pointer' }}>New Ticket</button>
-        </div>
-        <div style={{ padding: '20px', overflowY: 'auto', flex: 1 }}>
-            {tickets.map((t, i) => (
-                <div key={i} style={{ padding: '12px', border: '1px solid #f1f5f9', borderRadius: '8px', marginBottom: '10px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-                        <strong style={{ fontSize: '13px', color: 'var(--primary-color)' }}>{t.id} - {t.subject}</strong>
-                        <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '12px', background: t.priority === 'High' ? '#fee2e2' : '#f3f4f6', color: t.priority === 'High' ? '#dc2626' : '#4b5563' }}>{t.priority}</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#64748b' }}>
-                        <span>{t.client}</span>
-                        <span style={{ color: t.status === 'Open' ? '#ef4444' : t.status === 'Resolved' ? '#10b981' : '#f59e0b', fontWeight: 'bold' }}>{t.status}</span>
-                    </div>
+/**
+ * Project Milestone Overview Panel
+ */
+const ProjectOverview = ({ projects, navigate }) => {
+    return (
+        <div className="portal-content-card workspace-card">
+            <div className="workspace-card-header">
+                <div>
+                    <h3 className="workspace-card-title">Active Projects</h3>
+                    <p className="workspace-card-subtitle">Current delivery milestones</p>
                 </div>
-            ))}
-        </div>
-    </div>
-);
+                <button
+                    className="card-text-link"
+                    onClick={() => navigate('/portal/admin/projects')}
+                >
+                    Manage
+                </button>
+            </div>
 
-const TaskList = () => (
-    <div className="portal-content-card" style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'white', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
-        <h3 style={{ margin: '0', padding: '20px', borderBottom: '1px solid #f1f5f9', fontSize: '1.1rem', fontWeight: 600 }}>My Tasks</h3>
-        <div style={{ padding: '20px', overflowY: 'auto', flex: 1 }}>
-            {[
-                { task: 'Review Q3 Financials', due: 'Today', priority: 'High', done: false },
-                { task: 'Client Onboarding - Beta Co.', due: 'Tomorrow', priority: 'Medium', done: false },
-                { task: 'Team Standup', due: 'Today', priority: 'Low', done: true },
-            ].map((t, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 0', borderBottom: '1px solid #f1f5f9' }}>
-                    <input type="checkbox" checked={t.done} readOnly style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
-                    <div style={{ flex: 1 }}>
-                        <p style={{ margin: 0, fontSize: '14px', textDecoration: t.done ? 'line-through' : 'none', color: t.done ? '#64748b' : '#334155' }}>{t.task}</p>
-                        <span style={{ fontSize: '11px', color: '#94a3b8' }}>Due: {t.due} • {t.priority}</span>
+            <div className="projects-list-container">
+                {projects && projects.length > 0 ? (
+                    projects.slice(0, 4).map((p, i) => (
+                        <div key={i} className="project-progress-item">
+                            <div className="project-progress-header">
+                                <span className="project-name">{p.name}</span>
+                                <span className="project-pct">{p.progress}%</span>
+                            </div>
+                            <div className="project-progress-track">
+                                <div
+                                    className="project-progress-fill"
+                                    style={{
+                                        width: `${p.progress}%`,
+                                        backgroundColor: p.progress === 100 ? '#10b981' : 'var(--primary-color)'
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    ))
+                ) : (
+                    <div className="empty-panel-state">
+                        <p>No active project records found.</p>
                     </div>
-                </div>
-            ))}
+                )}
+            </div>
         </div>
-    </div>
-);
+    );
+};
 
 // --- Main Dashboard Component ---
 
 const Dashboard = () => {
+    const navigate = useNavigate();
     const { company } = useCompany();
-    const [layouts, setLayouts] = useState({
-        lg: [
-            { i: 'stats', x: 0, y: 0, w: 12, h: 2, static: true },
-            { i: 'finance', x: 0, y: 2, w: 8, h: 4.5 },
-            { i: 'actions', x: 8, y: 2, w: 4, h: 2 },
-            { i: 'tasks', x: 8, y: 4, w: 4, h: 2.5 },
-            { i: 'projects', x: 0, y: 6.5, w: 4, h: 4.5 },
-            { i: 'sales', x: 4, y: 6.5, w: 4, h: 4.5 },
-            { i: 'tickets', x: 8, y: 6.5, w: 4, h: 4.5 },
-            { i: 'activity', x: 0, y: 11, w: 12, h: 3 },
-        ]
-    });
 
     const [mounted, setMounted] = useState(false);
     const [user, setUser] = useState(defaultUser);
@@ -297,76 +373,84 @@ const Dashboard = () => {
     const [categorySales, setCategorySales] = useState([]);
     const [recentSales, setRecentSales] = useState([]);
     const [projects, setProjects] = useState([]);
-    const [tickets, setTickets] = useState([]);
+    const [kpiMetrics, setKpiMetrics] = useState({ avgSale: 0, growthPct: 0 });
 
     useEffect(() => {
         setMounted(true);
-        
-        // 1. Get logged-in user profile
+
+        // 1. Get logged-in user profile from session
         const activeUser = apiClient.auth.getCurrentUser();
         if (activeUser) {
             setUser(activeUser);
         }
 
-        // 2. Load LocalStorage Fallbacks
-        setProjects(apiClient.projects.list());
-        setTickets(apiClient.tickets.list());
+        // 2. Load LocalStorage Projects & Tickets (Audited Fallbacks)
+        try {
+            setProjects(apiClient.projects.list());
+        } catch {
+            setProjects([]);
+        }
 
-        // 3. Fetch stats from API
-        const loadStats = async () => {
+        // 3. Fetch Real Stats from Backend API
+        const loadDashboardData = async () => {
             try {
                 const data = await apiClient.dashboard.getStats();
                 if (data && data.kpis) {
                     const kpis = data.kpis;
-                    
-                    // Format Stats Cards
+
+                    setKpiMetrics({
+                        avgSale: kpis.avg_sale_value || 0,
+                        growthPct: kpis.sales_growth_pct || 0
+                    });
+
+                    // Format 4 Standard KPI Cards
                     const updatedStats = [
-                        { 
-                            title: 'Total Revenue', 
-                            value: `KES ${kpis.total_sales.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, 
-                            trend: `${kpis.sales_growth_pct}%`, 
-                            isUp: kpis.sales_growth_pct >= 0, 
-                            icon: <DollarSign size={24} />, 
-                            color: 'var(--primary-color)' 
+                        {
+                            title: 'Total Revenue',
+                            value: `KES ${Number(kpis.total_sales || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+                            trend: `${kpis.sales_growth_pct}% growth`,
+                            isUp: (kpis.sales_growth_pct || 0) >= 0,
+                            icon: <DollarSign size={22} />,
+                            color: 'var(--primary-color)'
                         },
-                        { 
-                            title: 'Transactions', 
-                            value: kpis.transaction_count.toString(), 
-                            trend: 'N/A', 
-                            isUp: true, 
-                            icon: <Users size={24} />, 
-                            color: '#10b981' 
+                        {
+                            title: 'Transactions',
+                            value: Number(kpis.transaction_count || 0).toString(),
+                            trend: 'Completed sales',
+                            isUp: true,
+                            icon: <Users size={22} />,
+                            color: '#10b981'
                         },
-                        { 
-                            title: 'Stock Value', 
-                            value: `KES ${kpis.inventory_value.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, 
-                            trend: `${kpis.low_stock_count} low items`, 
-                            isUp: kpis.low_stock_count === 0, 
-                            icon: <Briefcase size={24} />, 
-                            color: '#f59e0b' 
+                        {
+                            title: 'Stock Value',
+                            value: `KES ${Number(kpis.inventory_value || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+                            trend: `${kpis.low_stock_count || 0} low stock items`,
+                            isUp: (kpis.low_stock_count || 0) === 0,
+                            icon: <Briefcase size={22} />,
+                            color: '#f59e0b'
                         },
-                        { 
-                            title: 'Open Tickets', 
-                            value: apiClient.tickets.list().filter(t => t.status === 'Open').length.toString(), 
-                            trend: '0%', 
-                            isUp: false, 
-                            icon: <Headset size={24} />, 
-                            color: '#ef4444' 
+                        {
+                            title: 'Open Tickets',
+                            value: apiClient.tickets.list().filter(t => t.status === 'Open').length.toString(),
+                            trend: 'Active support',
+                            isUp: false,
+                            icon: <Headset size={22} />,
+                            color: '#ef4444'
                         },
                     ];
                     setStats(updatedStats);
-                    
-                    // Format Revenue Area Chart data
-                    if (data.trends && data.trends.daily_sales) {
+
+                    // Daily Sales Trend Chart Data
+                    if (data.trends && data.trends.daily_sales && data.trends.daily_sales.length > 0) {
                         setRevenueData(data.trends.daily_sales);
                     }
-                    
-                    // Format Category Sales Bar Chart data
+
+                    // Category Sales Data
                     if (data.trends && data.trends.category_sales) {
                         setCategorySales(data.trends.category_sales);
                     }
 
-                    // Format Recent activities
+                    // Recent Recorded Sales
                     if (data.recent_sales) {
                         setRecentSales(data.recent_sales);
                     }
@@ -376,85 +460,511 @@ const Dashboard = () => {
             }
         };
 
-        loadStats();
+        loadDashboardData();
     }, []);
 
-    const onLayoutChange = (_, layouts) => {
-        setLayouts(layouts);
-    };
-
-    if (!mounted) return <div style={{ padding: '20px' }}>Loading Dashboard...</div>;
+    if (!mounted) {
+        return (
+            <div className="dashboard-loading-state">
+                <Activity size={32} className="spin-slow" style={{ color: 'var(--primary-color)' }} />
+                <span>Loading Management Workspace...</span>
+            </div>
+        );
+    }
 
     return (
-        <div style={{ padding: '20px', background: 'var(--body-bg)', minHeight: '100vh', width: '100%', overflowX: 'hidden' }}>
-
+        <div className="management-dashboard-workspace">
+            {/* A & B: Executive Welcome Banner with Telemetry */}
             <WelcomeSection user={user} companyName={company.name} />
 
-            <div style={{ margin: '-10px' }}>
-                <ResponsiveGridLayout
-                    className="layout"
-                    layouts={layouts}
-                    breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
-                    cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
-                    rowHeight={100}
-                    onLayoutChange={onLayoutChange}
-                    isDraggable={true}
-                    isResizable={true}
-                    margin={[20, 20]}
-                >
-                    <div key="stats"><QuickStats stats={stats} /></div>
-                    <div key="finance"><FinancialOverview revenueData={revenueData} /></div>
-                    <div key="actions"><QuickActions /></div>
-                    <div key="tasks"><TaskList /></div>
-                    <div key="projects"><ProjectOverview projects={projects} /></div>
-                    <div key="sales"><SalesPerformance categorySales={categorySales} /></div>
-                    <div key="tickets"><SupportTickets tickets={tickets} /></div>
-                    <div key="activity"><ActivityFeed sales={recentSales} /></div>
-                </ResponsiveGridLayout>
+            {/* C: 4-Column Responsive KPI Cards */}
+            <QuickStats stats={stats} />
+
+            {/* D & E: Structured Two-Column Workspace Grid */}
+            <div className="workspace-main-grid">
+                {/* Left Column (Primary Financial & Performance Panels) */}
+                <div className="workspace-column-left">
+                    <FinancialOverview
+                        revenueData={revenueData}
+                        avgSale={kpiMetrics.avgSale}
+                        growthPct={kpiMetrics.growthPct}
+                    />
+
+                    <SalesPerformance categorySales={categorySales} />
+                </div>
+
+                {/* Right Column (Operational Activity, Quick Actions & Projects) */}
+                <div className="workspace-column-right">
+                    <QuickActions navigate={navigate} />
+
+                    <RecentActivity sales={recentSales} navigate={navigate} />
+
+                    <ProjectOverview projects={projects} navigate={navigate} />
+                </div>
             </div>
+
+            {/* Embedded Responsive Scoped Layout Styles */}
             <style>{`
-                .react-grid-item {
-                    transition: all 200ms ease;
-                    transition-property: left, top;
+                .management-dashboard-workspace {
+                    padding: 24px;
+                    background-color: var(--body-bg, #f8fafc);
+                    min-height: 100vh;
+                    width: 100%;
+                    max-width: 1600px;
+                    margin: 0 auto;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 20px;
                 }
-                .react-grid-item.cssTransforms {
-                    transition-property: transform;
+
+                /* --- Executive Welcome Banner --- */
+                .dashboard-welcome-banner {
+                    background: linear-gradient(135deg, var(--primary-color, #16657a) 0%, #0d3c49 100%);
+                    color: #ffffff;
+                    border-radius: 12px;
+                    padding: 16px 24px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    box-shadow: 0 4px 12px rgba(22, 101, 122, 0.12);
+                    flex-wrap: wrap;
+                    gap: 12px;
                 }
-                .react-grid-item.resizing {
-                    z-index: 100;
-                    will-change: width, height;
+
+                .welcome-heading-row {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    flex-wrap: wrap;
                 }
-                .react-grid-item.react-draggable-dragging {
-                    transition: none;
-                    z-index: 100;
-                    will-change: transform;
-                    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+
+                .welcome-title {
+                    font-size: 1.35rem;
+                    font-weight: 700;
+                    margin: 0;
+                    color: #ffffff;
+                    letter-spacing: -0.2px;
                 }
+
+                .welcome-company-badge {
+                    font-size: 11px;
+                    font-weight: 600;
+                    background: rgba(255, 255, 255, 0.15);
+                    border: 1px solid rgba(255, 255, 255, 0.2);
+                    padding: 2px 8px;
+                    border-radius: 12px;
+                    color: #f1f5f9;
+                }
+
+                .welcome-date-text {
+                    font-size: 13px;
+                    margin: 2px 0 0 0;
+                    color: rgba(255, 255, 255, 0.85);
+                }
+
+                .connection-telemetry-chip {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    background: rgba(0, 0, 0, 0.2);
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    padding: 6px 14px;
+                    border-radius: 20px;
+                    font-size: 12px;
+                    font-weight: 500;
+                }
+
+                .telemetry-live-dot {
+                    width: 8px;
+                    height: 8px;
+                    background-color: #10b981;
+                    border-radius: 50%;
+                    box-shadow: 0 0 8px #10b981;
+                }
+
+                /* --- KPI Grid --- */
                 .stats-grid-responsive {
                     display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                    grid-template-columns: repeat(4, 1fr);
+                    gap: 16px;
                 }
-                
+
+                .stat-card-modern {
+                    background: #ffffff;
+                    border-radius: 12px;
+                    padding: 18px 20px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    border: 1px solid #e2e8f0;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+                    transition: transform 0.2s ease, box-shadow 0.2s ease;
+                }
+
+                .stat-card-modern:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 8px 16px rgba(0,0,0,0.05);
+                }
+
+                .stat-card-title {
+                    font-size: 13px;
+                    font-weight: 500;
+                    color: #64748b;
+                    margin-bottom: 4px;
+                    display: block;
+                }
+
+                .stat-card-value {
+                    font-size: 1.5rem;
+                    font-weight: 700;
+                    color: #1e293b;
+                    margin: 0 0 6px 0;
+                    line-height: 1.2;
+                }
+
+                .stat-trend-pill {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 4px;
+                    font-size: 11px;
+                    font-weight: 500;
+                    padding: 2px 6px;
+                    border-radius: 6px;
+                }
+
+                .trend-up {
+                    background-color: #ecfdf5;
+                    color: #10b981;
+                }
+
+                .trend-neutral {
+                    background-color: #f8fafc;
+                    color: #64748b;
+                }
+
+                .stat-card-icon-bubble {
+                    width: 46px;
+                    height: 46px;
+                    border-radius: 12px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    flex-shrink: 0;
+                }
+
+                /* --- Two-Column Main Workspace Grid --- */
+                .workspace-main-grid {
+                    display: grid;
+                    grid-template-columns: minmax(0, 1.8fr) minmax(0, 1.2fr);
+                    gap: 20px;
+                    align-items: start;
+                }
+
+                .workspace-column-left,
+                .workspace-column-right {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 20px;
+                }
+
+                /* --- Workspace Cards --- */
+                .workspace-card {
+                    background: #ffffff;
+                    border-radius: 12px;
+                    border: 1px solid #e2e8f0;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+                    overflow: hidden;
+                }
+
+                .workspace-card-header {
+                    padding: 16px 20px;
+                    border-bottom: 1px solid #f1f5f9;
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                }
+
+                .workspace-card-title {
+                    font-size: 15px;
+                    font-weight: 600;
+                    color: #1e293b;
+                    margin: 0;
+                }
+
+                .workspace-card-subtitle {
+                    font-size: 12px;
+                    color: #64748b;
+                    margin: 2px 0 0 0;
+                }
+
+                .workspace-card-badge {
+                    display: flex;
+                    align-items: center;
+                    gap: 5px;
+                    background: #f8fafc;
+                    border: 1px solid #e2e8f0;
+                    padding: 3px 8px;
+                    border-radius: 12px;
+                    font-size: 11px;
+                    color: #64748b;
+                    font-weight: 500;
+                }
+
+                .card-text-link {
+                    background: none;
+                    border: none;
+                    color: var(--primary-color, #16657a);
+                    font-size: 12px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    padding: 0;
+                }
+
+                .card-text-link:hover {
+                    text-decoration: underline;
+                }
+
+                /* --- Financial Chart Details --- */
+                .financial-chart-container {
+                    padding: 16px 20px;
+                }
+
+                .chart-empty-indicator {
+                    margin-top: 10px;
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    font-size: 12px;
+                    color: #64748b;
+                    background: #f8fafc;
+                    padding: 8px 12px;
+                    border-radius: 8px;
+                }
+
+                .financial-metrics-footer {
+                    display: flex;
+                    border-top: 1px solid #f1f5f9;
+                    background: #fafbfd;
+                    padding: 12px 20px;
+                }
+
+                .footer-metric-col {
+                    flex: 1;
+                    display: flex;
+                    flex-direction: column;
+                }
+
+                .footer-metric-label {
+                    font-size: 11px;
+                    color: #64748b;
+                    margin-bottom: 2px;
+                }
+
+                .footer-metric-val {
+                    font-size: 14px;
+                    font-weight: 700;
+                    color: #1e293b;
+                }
+
+                .footer-metric-divider {
+                    width: 1px;
+                    background: #e2e8f0;
+                    margin: 0 16px;
+                }
+
+                .text-green { color: #10b981; }
+                .text-red { color: #ef4444; }
+
+                /* --- Quick Actions Grid --- */
                 .quick-actions-grid {
                     display: grid;
                     grid-template-columns: repeat(2, 1fr);
+                    gap: 10px;
+                    padding: 16px 20px;
                 }
 
-                @media (max-width: 1024px) {
+                .quick-action-item {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    padding: 10px 12px;
+                    border-radius: 8px;
+                    border: 1px solid #f1f5f9;
+                    background: #ffffff;
+                    cursor: pointer;
+                    text-align: left;
+                    transition: all 0.15s ease;
+                }
+
+                .quick-action-item:hover {
+                    border-color: #cbd5e1;
+                    background: #f8fafc;
+                    transform: translateY(-1px);
+                }
+
+                .quick-action-icon {
+                    width: 32px;
+                    height: 32px;
+                    border-radius: 8px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    flex-shrink: 0;
+                }
+
+                .quick-action-label {
+                    font-size: 12px;
+                    font-weight: 500;
+                    color: #334155;
+                    flex: 1;
+                }
+
+                .quick-action-arrow {
+                    color: #94a3b8;
+                    opacity: 0;
+                    transition: opacity 0.15s ease;
+                }
+
+                .quick-action-item:hover .quick-action-arrow {
+                    opacity: 1;
+                }
+
+                /* --- Recent Activity List --- */
+                .activity-list-container {
+                    padding: 12px 20px;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 12px;
+                }
+
+                .activity-list-item {
+                    display: flex;
+                    align-items: flex-start;
+                    gap: 12px;
+                    padding-bottom: 12px;
+                    border-bottom: 1px solid #f8fafc;
+                }
+
+                .activity-list-item:last-child {
+                    border-bottom: none;
+                    padding-bottom: 0;
+                }
+
+                .activity-dot {
+                    width: 8px;
+                    height: 8px;
+                    border-radius: 50%;
+                    background-color: #10b981;
+                    margin-top: 6px;
+                    flex-shrink: 0;
+                }
+
+                .activity-details {
+                    flex: 1;
+                }
+
+                .activity-top-row {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 2px;
+                }
+
+                .activity-sale-number {
+                    font-size: 13px;
+                    font-weight: 600;
+                    color: #1e293b;
+                }
+
+                .activity-amount {
+                    font-size: 13px;
+                    font-weight: 700;
+                    color: var(--primary-color, #16657a);
+                }
+
+                .activity-meta-row {
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    font-size: 11px;
+                    color: #64748b;
+                }
+
+                /* --- Projects Progress --- */
+                .projects-list-container {
+                    padding: 16px 20px;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 14px;
+                }
+
+                .project-progress-item {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 6px;
+                }
+
+                .project-progress-header {
+                    display: flex;
+                    justify-content: space-between;
+                    font-size: 12px;
+                }
+
+                .project-name {
+                    font-weight: 500;
+                    color: #334155;
+                }
+
+                .project-pct {
+                    color: #64748b;
+                    font-weight: 600;
+                }
+
+                .project-progress-track {
+                    height: 6px;
+                    background: #f1f5f9;
+                    border-radius: 4px;
+                    overflow: hidden;
+                }
+
+                .project-progress-fill {
+                    height: 100%;
+                    border-radius: 4px;
+                    transition: width 0.3s ease;
+                }
+
+                .empty-panel-state {
+                    padding: 30px 20px;
+                    text-align: center;
+                    color: #94a3b8;
+                    font-size: 13px;
+                }
+
+                .dashboard-loading-state {
+                    padding: 60px 20px;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 12px;
+                    color: #64748b;
+                    font-size: 14px;
+                }
+
+                /* --- Responsive Breakpoints --- */
+                @media (max-width: 1200px) {
                     .stats-grid-responsive {
-                        grid-template-columns: 1fr 1fr;
+                        grid-template-columns: repeat(2, 1fr);
+                    }
+                    .workspace-main-grid {
+                        grid-template-columns: 1fr;
                     }
                 }
 
                 @media (max-width: 768px) {
-                    .dashboard-welcome h1 {
-                        font-size: 20px !important;
-                    }
-                    .dashboard-welcome p {
-                        font-size: 13px !important;
-                    }
-                    .welcome-stats {
-                        font-size: 12px !important;
+                    .management-dashboard-workspace {
+                        padding: 16px;
+                        gap: 16px;
                     }
                     .stats-grid-responsive {
                         grid-template-columns: 1fr;
@@ -462,23 +972,8 @@ const Dashboard = () => {
                     .quick-actions-grid {
                         grid-template-columns: 1fr;
                     }
-                    .stat-card-modern {
-                        padding: 15px !important;
-                    }
-                    .stat-card-modern h2 {
-                        font-size: 20px !important;
-                    }
-                }
-
-                @media (max-width: 480px) {
-                    .dashboard-welcome {
-                        padding: 15px !important;
-                    }
-                    .react-grid-layout {
-                        margin: 0 !important;
-                    }
-                    .quick-action-btn span {
-                        font-size: 12px !important;
+                    .welcome-title {
+                        font-size: 1.15rem;
                     }
                 }
             `}</style>

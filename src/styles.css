@@ -5095,7 +5095,7 @@ body {
 
 /* Topbar */
 .portal-topbar {
-  height: 80px;
+  height: 64px;
   background: white;
   padding: 0 2rem;
   display: flex;

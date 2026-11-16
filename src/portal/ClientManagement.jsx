@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { apiClient } from '../services/apiClient';
 import {
     Users, UserPlus, Building2, Briefcase, FileText,
@@ -54,7 +55,15 @@ const TEMPLATES = [
 ];
 
 const ClientManagement = () => {
-    const [view, setView] = useState('dashboard'); // dashboard, list, profile, registration, edit, communications, reports
+    const [searchParams, setSearchParams] = useSearchParams();
+    const urlView = searchParams.get('view');
+    const [view, setView] = useState(urlView || 'dashboard'); // dashboard, list, profile, registration, edit, communications, reports
+
+    useEffect(() => {
+        if (urlView && urlView !== view) {
+            setView(urlView);
+        }
+    }, [urlView]);
     const [userRole, setUserRole] = useState('Admin'); // Admin, Staff
     const [activeClientId, setActiveClientId] = useState(null);
     const [clients, setClients] = useState([]);

@@ -1,0 +1,544 @@
+/* ========================================================
+   Royal Software Solutions — Hybrid Planner Module Styling
+   ======================================================== */
+
+.planner-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    width: 100%;
+    animation: fadeIn 0.25s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Quick Action Toolbar */
+.planner-quick-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 0.75rem 1.25rem;
+    gap: 1rem;
+    flex-wrap: wrap;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+}
+
+.planner-quick-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.btn-planner-quick {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 0.85rem;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #334155;
+}
+
+.btn-planner-quick:hover {
+    background: #f1f5f9;
+    border-color: #94a3b8;
+    color: #0f172a;
+}
+
+.btn-planner-quick.primary {
+    background: #005f73;
+    border-color: #005f73;
+    color: #ffffff;
+}
+
+.btn-planner-quick.primary:hover {
+    background: #0a9396;
+    border-color: #0a9396;
+}
+
+/* Kanban Board Layout */
+.planner-kanban-board {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.25rem;
+    align-items: flex-start;
+}
+
+.kanban-column {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    min-height: 500px;
+}
+
+.kanban-column-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.kanban-column-title {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #1e293b;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.kanban-counter-badge {
+    background: #e2e8f0;
+    color: #475569;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 0.15rem 0.5rem;
+    border-radius: 12px;
+}
+
+.kanban-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+}
+
+.kanban-card:hover {
+    border-color: #005f73;
+    box-shadow: 0 4px 12px rgba(0,95,115,0.08);
+    transform: translateY(-2px);
+}
+
+.kanban-card-title {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.35;
+}
+
+.kanban-card-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.76rem;
+    color: #64748b;
+    padding-top: 0.4rem;
+    border-top: 1px dashed #f1f5f9;
+}
+
+/* Habit Streak Matrix */
+.habit-matrix-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.25rem;
+}
+
+.habit-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    transition: all 0.2s ease;
+}
+
+.habit-card:hover {
+    border-color: #0a9396;
+    box-shadow: 0 4px 15px rgba(10,147,150,0.08);
+}
+
+.habit-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.habit-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0;
+}
+
+.habit-streak-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    background: #fff7ed;
+    color: #c2410c;
+    border: 1px solid #ffedd5;
+    padding: 0.25rem 0.65rem;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.habit-days-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.35rem;
+}
+
+.habit-day-dot {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 600;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.habit-day-dot.completed {
+    background: #005f73;
+    border-color: #005f73;
+    color: #ffffff;
+}
+
+.habit-day-dot.today {
+    border-color: #ee9b00;
+    box-shadow: 0 0 0 2px rgba(238,155,0,0.25);
+}
+
+/* Interactive Calendar Grid */
+.calendar-month-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    background: #e2e8f0;
+    gap: 1px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.calendar-header-cell {
+    background: #f8fafc;
+    padding: 0.75rem 0.5rem;
+    text-align: center;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #475569;
+}
+
+.calendar-day-cell {
+    background: #ffffff;
+    min-height: 110px;
+    padding: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    transition: background 0.15s ease;
+}
+
+.calendar-day-cell:hover {
+    background: #f8fafc;
+}
+
+.calendar-day-cell.other-month {
+    background: #fafafa;
+    color: #cbd5e1;
+}
+
+.calendar-day-cell.is-today {
+    background: #f0fdfa;
+}
+
+.calendar-day-num {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #334155;
+}
+
+.calendar-day-cell.is-today .calendar-day-num {
+    color: #005f73;
+    background: #ccfbf1;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.calendar-event-chip {
+    padding: 0.2rem 0.45rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+    border-left: 3px solid #005f73;
+    background: #f1f5f9;
+    color: #1e293b;
+    transition: transform 0.1s ease;
+}
+
+.calendar-event-chip:hover {
+    transform: scale(1.02);
+}
+
+.calendar-event-chip.type-meeting {
+    background: #eff6ff;
+    border-color: #2563eb;
+    color: #1e40af;
+}
+
+.calendar-event-chip.type-deadline {
+    background: #fef2f2;
+    border-color: #dc2626;
+    color: #991b1b;
+}
+
+.calendar-event-chip.type-personal {
+    background: #fdf2f8;
+    border-color: #db2777;
+    color: #831843;
+}
+
+/* Modal Drawer Overlay */
+.planner-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(2px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 1rem;
+    animation: fadeIn 0.2s ease;
+}
+
+.planner-modal-content {
+    background: #ffffff;
+    border-radius: 14px;
+    width: 100%;
+    max-width: 680px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    display: flex;
+    flex-direction: column;
+}
+
+.planner-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.planner-modal-body {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.planner-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding: 1rem 1.5rem;
+    border-top: 1px solid #e2e8f0;
+    background: #f8fafc;
+    border-bottom-left-radius: 14px;
+    border-bottom-right-radius: 14px;
+}
+
+/* ========================================================
+   Modern SaaS Dashboard Header View (Image 1 & 2 Aesthetic)
+   ======================================================== */
+.planner-hero-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: stretch;
+    gap: 2rem;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 20px;
+    padding: 2rem 2.25rem;
+    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.03);
+    flex-wrap: wrap;
+    position: relative;
+    overflow: hidden;
+}
+
+.planner-hero-header::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 250px;
+    height: 100%;
+    background: radial-gradient(circle at 100% 0%, rgba(22, 101, 122, 0.04) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.planner-hero-main {
+    flex: 1 1 360px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 280px;
+}
+
+.planner-hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #f0fdf4;
+    color: #166534;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 9999px;
+    border: 1px solid #bbf7d0;
+    width: fit-content;
+    margin-bottom: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.planner-hero-title {
+    font-size: 1.85rem;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.25;
+    margin: 0 0 0.5rem 0;
+    letter-spacing: -0.02em;
+}
+
+.planner-hero-subheading {
+    color: #334155;
+    font-weight: 700;
+}
+
+.planner-hero-desc {
+    font-size: 0.88rem;
+    color: #64748b;
+    margin: 0 0 1.25rem 0;
+    line-height: 1.5;
+    max-width: 520px;
+}
+
+.planner-hero-quick-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.planner-meta-tag {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+    color: #475569;
+}
+
+.planner-meta-tag strong {
+    color: #0f172a;
+    font-weight: 700;
+}
+
+/* Feature Cards Grid (Inspired by Reference Design) */
+.planner-feature-cards {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex: 1 1 480px;
+    flex-wrap: wrap;
+}
+
+.planner-feature-card {
+    flex: 1 1 140px;
+    min-width: 140px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 1.15rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.planner-feature-card:hover {
+    transform: translateY(-2px);
+    border-color: #cbd5e1;
+    box-shadow: 0 8px 16px -4px rgba(0, 0, 0, 0.06);
+}
+
+.feature-card-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0.25rem;
+}
+
+.feature-card-title {
+    margin: 0;
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.feature-card-desc {
+    margin: 0;
+    font-size: 0.75rem;
+    color: #64748b;
+    line-height: 1.35;
+    flex: 1;
+}
+
+.feature-card-action {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #0284c7;
+    margin-top: 0.25rem;
+}
+

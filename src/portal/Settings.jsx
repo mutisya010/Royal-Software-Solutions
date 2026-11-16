@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams, Navigate, Link } from 'react-router-dom';
 import { apiClient } from '../services/apiClient';
+import { hasPermission, isAdminUser } from './navigationConfig';
 import {
     Settings, Building, Users, Shield, Mail, CreditCard,
     Database, Activity, Lock, Globe, Bell, Save,
@@ -8,23 +10,6 @@ import {
     Monitor, Server, Mailbox
 } from 'lucide-react';
 
-// --- Dummy Data ---
-const initialRoles = [
-    { id: 1, name: "Administrator", users: 3, status: "Active" },
-    { id: 2, name: "Project Manager", users: 5, status: "Active" },
-    { id: 3, name: "Finance Officer", users: 2, status: "Active" },
-    { id: 4, name: "Sales Agent", users: 8, status: "Active" },
-    { id: 5, name: "Support Staff", users: 6, status: "Active" },
-    { id: 6, name: "Client", users: 45, status: "Active" }
-];
-
-const permissionModules = [
-    { name: "Project Management", actions: ["View", "Create", "Edit", "Delete", "Manage Tasks"] },
-    { name: "Finance & Accounting", actions: ["View Invoices", "Create Invoices", "Manage Expenses", "View Reports"] },
-    { name: "Support System", actions: ["View Tickets", "Assign Tickets", "Resolve Tickets", "Manage KB"] },
-    { name: "Client Portal", actions: ["View Profile", "Update Billing", "Download Docs"] }
-];
-
 const systemLogs = [
     { id: 1, user: "Admin (Jane)", action: "Enabled 2FA globally", module: "Security", time: "10 mins ago" },
     { id: 2, user: "System", action: "Automatic Backup completed", module: "Database", time: "1 hour ago" },
@@ -32,13 +17,27 @@ const systemLogs = [
     { id: 4, user: "Admin (Jane)", action: "Modified 'Client' role permissions", module: "RBAC", time: "Yesterday" }
 ];
 
-const SettingsPage = () => {
-    const [activeTab, setActiveTab] = useState('general'); // general, rbac, security, email, integrations, backup, logs
-    const [maintenanceMode, setMaintenanceMode] = useState(false);
+// Section metadata – navigation lives in the secondary sidebar, so the page only renders the active section
+const SETTINGS_SECTIONS = {
+    general: { title: 'General Configuration', desc: 'Company profile, tax and regional preferences.' },
+    security: { title: 'Security & Authentication', desc: 'Password policy, session and account protection.' },
+    email: { title: 'Email & Notifications', desc: 'Dispatch engine and sender identity for client communications.' },
+    integrations: { title: 'Integrations & API', desc: 'Payment gateways and third-party API connections.' },
+    backup: { title: 'Backup & Recovery', desc: 'Database backups and data exports.' },
+    logs: { title: 'Audit Logs', desc: 'Security and configuration activity trail.' },
+};
 
+const SettingsPage = () => {
+    const [searchParams] = useSearchParams();
+    const urlView = searchParams.get('view');
+    const currentUser = apiClient.auth.getCurrentUser();
+
+    const [maintenanceMode, setMaintenanceMode] = useState(false);
     const [companyInfo, setCompanyInfo] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+
+    const canManageSettings = isAdminUser(currentUser) || hasPermission(currentUser, 'accounts.can_manage_settings');
 
     const loadCompanyInfo = async () => {
         setLoading(true);
@@ -55,8 +54,30 @@ const SettingsPage = () => {
     };
 
     useEffect(() => {
-        loadCompanyInfo();
+        if (canManageSettings) loadCompanyInfo();
     }, []);
+
+    // Legacy deep-link: Roles & Access now lives on its own page
+    if (urlView === 'rbac') {
+        return <Navigate to="/portal/admin/users-roles?view=roles" replace />;
+    }
+
+    if (!canManageSettings) {
+        return (
+            <div className="portal-content-card" style={{ maxWidth: 480, margin: '60px auto', padding: '40px 32px', textAlign: 'center' }}>
+                <div style={{ width: 52, height: 52, borderRadius: 14, background: '#fef2f2', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                    <Lock size={24} />
+                </div>
+                <h2 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 700, color: '#0f172a' }}>Access restricted</h2>
+                <p style={{ margin: 0, fontSize: 13.5, color: '#64748b', lineHeight: 1.6 }}>
+                    System settings require the <code>Can view and modify portal settings</code> permission. Ask an administrator to grant it to your role.
+                </p>
+            </div>
+        );
+    }
+
+    const activeTab = SETTINGS_SECTIONS[urlView] ? urlView : 'general';
+    const section = SETTINGS_SECTIONS[activeTab];
 
     const handleSaveCompanyInfo = async (updatedData) => {
         setLoading(true);
@@ -74,131 +95,60 @@ const SettingsPage = () => {
     };
 
     return (
-        <div className="settings-main-container portal-module animations-fade-in">
+        <div className="settings-main-container portal-module animations-fade-in" style={{ maxWidth: 1100 }}>
             <style>{`
-                .settings-grid { display: grid; grid-template-columns: 260px 1fr; gap: 30px; }
                 .settings-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-                .settings-bottom-nav { display: none; }
-
-                @media (max-width: 1024px) {
-                    .settings-grid { grid-template-columns: 1fr; }
-                    .settings-sidebar { display: none; }
-                    .settings-bottom-nav { 
-                        display: flex; 
-                        position: fixed; 
-                        bottom: 0; 
-                        left: 0; 
-                        right: 0; 
-                        background: rgba(255, 255, 255, 0.8); 
-                        backdrop-filter: blur(10px); 
-                        border-top: 1px solid #e2e8f0; 
-                        padding: 10px; 
-                        justify-content: space-around; 
-                        z-index: 1000;
-                        box-shadow: 0 -4px 12px rgba(0,0,0,0.05);
-                    }
-                    .settings-main-container { padding-bottom: 80px; }
-                }
-
                 @media (max-width: 768px) {
                     .settings-form-grid { grid-template-columns: 1fr; }
                     .audit-log-row { grid-template-columns: 1fr !important; gap: 5px !important; }
                     .audit-log-time { text-align: left !important; }
-                    .roles-table-container { overflow-x: auto; }
                     .integration-grid { grid-template-columns: 1fr !important; }
                 }
             `}</style>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
                 <div>
-                    <h2 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 800, color: '#1e293b' }}>System Settings</h2>
-                    <p style={{ margin: '5px 0 0 0', color: '#64748b', fontSize: '14px' }}>Configure global parameters, roles, and system integrations.</p>
+                    <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 700, color: '#0f172a' }}>{section.title}</h2>
+                    <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '13.5px' }}>{section.desc}</p>
                 </div>
+                {activeTab === 'general' && (
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 10, border: `1px solid ${maintenanceMode ? '#fecaca' : '#e2e8f0'}`, background: maintenanceMode ? '#fef2f2' : '#fff', cursor: 'pointer' }}>
+                        <span style={{ fontSize: 12.5, fontWeight: 600, color: maintenanceMode ? '#ef4444' : '#475569' }}>Maintenance Mode</span>
+                        <span
+                            onClick={() => setMaintenanceMode(!maintenanceMode)}
+                            style={{ width: 34, height: 18, borderRadius: 9, background: maintenanceMode ? '#ef4444' : '#e2e8f0', position: 'relative', transition: 'all 0.2s' }}
+                        >
+                            <span style={{ width: 12, height: 12, background: 'white', borderRadius: '50%', position: 'absolute', top: 3, left: maintenanceMode ? 19 : 3, transition: 'all 0.2s' }} />
+                        </span>
+                    </label>
+                )}
             </div>
 
-            <div className="settings-grid">
-                {/* Vertical Tabs Sidebar */}
-                <div className="settings-sidebar" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <TabBtn icon={<Building size={18} />} label="General Config" active={activeTab === 'general'} onClick={() => setActiveTab('general')} />
-                    <TabBtn icon={<Users size={18} />} label="Roles & Permissions" active={activeTab === 'rbac'} onClick={() => setActiveTab('rbac')} />
-                    <TabBtn icon={<Shield size={18} />} label="System Security" active={activeTab === 'security'} onClick={() => setActiveTab('security')} />
-                    <TabBtn icon={<Mail size={18} />} label="Emails & Notifications" active={activeTab === 'email'} onClick={() => setActiveTab('email')} />
-                    <TabBtn icon={<CreditCard size={18} />} label="Payments & API" active={activeTab === 'integrations'} onClick={() => setActiveTab('integrations')} />
-                    <TabBtn icon={<Database size={18} />} label="Backup & Export" active={activeTab === 'backup'} onClick={() => setActiveTab('backup')} />
-                    <TabBtn icon={<Activity size={18} />} label="Audit Logs" active={activeTab === 'logs'} onClick={() => setActiveTab('logs')} />
+            <div className="settings-content">
+                {loading && <div style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>Syncing settings...</div>}
+                {error && <div style={{ padding: '12px', background: '#fef2f2', color: '#ef4444', borderRadius: '8px', marginBottom: '15px' }}>{error}</div>}
 
-                    <div style={{ marginTop: '20px', padding: '15px', borderRadius: '15px', background: maintenanceMode ? '#fef2f2' : '#f8fafc', border: `1px solid ${maintenanceMode ? '#fecaca' : '#e2e8f0'}` }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: '12px', fontWeight: 700, color: maintenanceMode ? '#ef4444' : '#64748b' }}>Maintenance Mode</span>
-                            <div
-                                onClick={() => setMaintenanceMode(!maintenanceMode)}
-                                style={{ width: '36px', height: '20px', borderRadius: '10px', background: maintenanceMode ? '#ef4444' : '#e2e8f0', position: 'relative', cursor: 'pointer', transition: 'all 0.3s' }}
-                            >
-                                <div style={{ width: '14px', height: '14px', background: 'white', borderRadius: '50%', position: 'absolute', top: '3px', left: maintenanceMode ? '19px' : '3px', transition: 'all 0.3s' }} />
-                            </div>
-                        </div>
-                        <p style={{ fontSize: '10px', color: '#94a3b8', marginTop: '5px', lineHeight: '1.4' }}>When enabled, clients cannot access the portal.</p>
+                {activeTab === 'general' && companyInfo && (
+                    <GeneralSettings companyInfo={companyInfo} onSave={handleSaveCompanyInfo} />
+                )}
+                {activeTab === 'security' && <SecuritySettings />}
+                {activeTab === 'email' && <EmailSettings />}
+                {activeTab === 'integrations' && <IntegrationsSettings />}
+                {activeTab === 'backup' && <BackupSettings />}
+                {activeTab === 'logs' && <LogsSettings />}
+
+                {activeTab === 'security' && (
+                    <div style={{ marginTop: 20, padding: '14px 16px', borderRadius: 12, background: '#f8fafc', border: '1px solid #e2e8f0', fontSize: 13, color: '#475569', display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <Users size={16} /> User accounts, roles and permissions are managed in
+                        <Link to="/portal/admin/users-roles?view=users" style={{ fontWeight: 600 }}>Users &amp; Roles</Link>.
                     </div>
-                </div>
-
-                {/* Mobile Bottom Navigation */}
-                <div className="settings-bottom-nav">
-                    <MobileSettingsBtn icon={<Building size={20} />} active={activeTab === 'general'} onClick={() => setActiveTab('general')} />
-                    <MobileSettingsBtn icon={<Users size={20} />} active={activeTab === 'rbac'} onClick={() => setActiveTab('rbac')} />
-                    <MobileSettingsBtn icon={<Shield size={20} />} active={activeTab === 'security'} onClick={() => setActiveTab('security')} />
-                    <MobileSettingsBtn icon={<Mail size={20} />} active={activeTab === 'email'} onClick={() => setActiveTab('email')} />
-                    <MobileSettingsBtn icon={<CreditCard size={20} />} active={activeTab === 'integrations'} onClick={() => setActiveTab('integrations')} />
-                    <MobileSettingsBtn icon={<Database size={20} />} active={activeTab === 'backup'} onClick={() => setActiveTab('backup')} />
-                    <MobileSettingsBtn icon={<Activity size={20} />} active={activeTab === 'logs'} onClick={() => setActiveTab('logs')} />
-                </div>
-
-                {/* Settings Content Area */}
-                <div className="settings-content">
-                    {loading && <div style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>Syncing settings...</div>}
-                    {error && <div style={{ padding: '12px', background: '#fef2f2', color: '#ef4444', borderRadius: '8px', marginBottom: '15px' }}>{error}</div>}
-                    
-                    {activeTab === 'general' && companyInfo && (
-                        <GeneralSettings companyInfo={companyInfo} onSave={handleSaveCompanyInfo} />
-                    )}
-                    {activeTab === 'rbac' && <RbacSettings />}
-                    {activeTab === 'security' && <SecuritySettings />}
-                    {activeTab === 'email' && <EmailSettings />}
-                    {activeTab === 'integrations' && <IntegrationsSettings />}
-                    {activeTab === 'backup' && <BackupSettings />}
-                    {activeTab === 'logs' && <LogsSettings />}
-                </div>
+                )}
             </div>
         </div>
     );
 };
 
-// --- Sub-components for each Tab ---
-
-const TabBtn = ({ icon, label, active, onClick }) => (
-    <button onClick={onClick} style={{
-        display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 15px', borderRadius: '10px',
-        border: 'none', background: active ? '#6366f1' : 'transparent',
-        color: active ? 'white' : '#64748b', fontWeight: 600, fontSize: '14px',
-        cursor: 'pointer', transition: 'all 0.3s', width: '100%', textAlign: 'left'
-    }} className={active ? '' : 'hover-bg-light'}>
-        {icon} {label}
-    </button>
-);
-
-const MobileSettingsBtn = ({ icon, active, onClick }) => (
-    <button onClick={onClick} style={{
-        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-        padding: '10px', border: 'none', background: 'transparent',
-        color: active ? '#6366f1' : '#64748b', transition: 'all 0.3s', cursor: 'pointer'
-    }}>
-        <div style={{
-            padding: '8px', borderRadius: '12px',
-            background: active ? '#6366f115' : 'transparent',
-            display: 'flex', alignItems: 'center', justifyContent: 'center'
-        }}>
-            {icon}
-        </div>
-    </button>
-);
+// --- Section components ---
 
 const GeneralSettings = ({ companyInfo, onSave }) => {
     const [name, setName] = useState(companyInfo?.name || '');
@@ -281,65 +231,6 @@ const SettingsInputField = ({ label, value, onChange, type = "text", disabled = 
     </div>
 );
 
-const RbacSettings = () => (
-    <div className="animations-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
-        <div className="portal-content-card" style={{ padding: '25px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <h3 style={{ margin: 0 }}>System Roles</h3>
-                <button className="btn-primary btn-sm"><Plus size={16} /> Create Role</button>
-            </div>
-            <div className="table-responsive">
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                    <thead>
-                        <tr style={{ borderBottom: '2px solid #f1f5f9' }}>
-                            <th style={{ padding: '12px', fontSize: '13px', color: '#64748b' }}>Role Name</th>
-                            <th style={{ padding: '12px', fontSize: '13px', color: '#64748b' }}>Users Count</th>
-                            <th style={{ padding: '12px', fontSize: '13px', color: '#64748b' }}>Status</th>
-                            <th style={{ padding: '12px', fontSize: '13px', color: '#64748b' }}>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {initialRoles.map(role => (
-                            <tr key={role.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                <td style={{ padding: '15px', fontWeight: 700 }}>{role.name}</td>
-                                <td style={{ padding: '15px' }}>{role.users} Members</td>
-                                <td style={{ padding: '15px' }}><span style={{ color: '#10b981', fontSize: '12px', fontWeight: 700 }}>● {role.status}</span></td>
-                                <td style={{ padding: '15px' }}>
-                                    <div style={{ display: 'flex', gap: '10px' }}>
-                                        <button className="icon-btn-sm" title="Edit"><Edit size={14} /></button>
-                                        <button className="icon-btn-sm danger" title="Delete"><Trash2 size={14} /></button>
-                                    </div>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <div className="portal-content-card" style={{ padding: '25px' }}>
-            <h3 style={{ margin: '0 0 20px 0' }}>Permissions Matrix (Administrator)</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                {permissionModules.map(module => (
-                    <div key={module.name} style={{ background: '#f8fafc', padding: '20px', borderRadius: '15px' }}>
-                        <h4 style={{ margin: '0 0 15px 0', fontSize: '14px', color: '#1e293b' }}>{module.name}</h4>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '15px' }}>
-                            {module.actions.map(action => (
-                                <div key={action} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <div style={{ width: '18px', height: '18px', borderRadius: '4px', background: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
-                                        <Check size={12} strokeWidth={4} />
-                                    </div>
-                                    <span style={{ fontSize: '13px', color: '#475569' }}>{action}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </div>
-    </div>
-);
-
 const SecuritySettings = () => (
     <div className="animations-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
         <div className="portal-content-card" style={{ padding: '30px' }}>
@@ -373,33 +264,436 @@ const SecuritySettings = () => (
     </div>
 );
 
-const EmailSettings = () => (
-    <div className="animations-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
-        <div className="portal-content-card" style={{ padding: '30px' }}>
-            <h3 style={{ margin: '0 0 25px 0' }}>SMTP Server Configuration</h3>
-            <div className="settings-form-grid">
-                <InputField label="SMTP Host" defaultValue="smtp.royalsoftwares.co.ke" />
-                <InputField label="Port" defaultValue="587" />
-                <InputField label="Username" defaultValue="notifications@royalsoftwares.co.ke" />
-                <InputField label="Password" type="password" defaultValue="••••••••••••" />
-                <SelectField label="Encryption" options={["TLS", "SSL", "None"]} />
-                <button className="btn-outline" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '25px' }}>
-                    <RefreshCw size={14} /> Send Test Email
-                </button>
-            </div>
-        </div>
+const EmailSettings = () => {
+    const [provider, setProvider] = useState('RESEND');
+    const [apiKey, setApiKey] = useState('');
+    const [fromName, setFromName] = useState('Royal Software Solutions');
+    const [fromEmail, setFromEmail] = useState('onboarding@resend.dev');
+    const [replyTo, setReplyTo] = useState('');
+    const [isActive, setIsActive] = useState(true);
+    const [smtpHost, setSmtpHost] = useState('smtp.royalsoftwares.co.ke');
+    const [smtpPort, setSmtpPort] = useState('587');
+    const [smtpUsername, setSmtpUsername] = useState('notifications@royalsoftwares.co.ke');
+    const [smtpPassword, setSmtpPassword] = useState('');
+    const [smtpUseTls, setSmtpUseTls] = useState(true);
 
-        <div className="portal-content-card" style={{ padding: '30px' }}>
-            <h3 style={{ margin: '0 0 25px 0' }}>Automated Notifications</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                <ToggleItem label="Project Creation Emails" desc="Notify clients when a new project is initialized." active />
-                <ToggleItem label="Invoice Payment Alerts" desc="Send confirmation email upon successful payment." active />
-                <ToggleItem label="Support Ticket Assignments" desc="Notify staff when they are assigned a new ticket." active />
-                <ToggleItem label="System Maintenance Alerts" desc="Email all users regarding planned downtime." />
+    const [showKey, setShowKey] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [testing, setTesting] = useState(false);
+    const [testEmail, setTestEmail] = useState('');
+    const [feedback, setFeedback] = useState(null);
+
+    useEffect(() => {
+        loadConfig();
+    }, []);
+
+    const loadConfig = async () => {
+        try {
+            setLoading(true);
+            const data = await apiClient.emailConfig.get();
+            if (data && data.provider) {
+                setProvider(data.provider || 'RESEND');
+                setApiKey(data.api_key || '');
+                setFromName(data.from_name || 'Royal Software Solutions');
+                setFromEmail(data.from_email || 'onboarding@resend.dev');
+                setReplyTo(data.reply_to || '');
+                setIsActive(data.is_active !== undefined ? data.is_active : true);
+                if (data.smtp_host) setSmtpHost(data.smtp_host);
+                if (data.smtp_port) setSmtpPort(String(data.smtp_port));
+                if (data.smtp_username) setSmtpUsername(data.smtp_username);
+                if (data.smtp_password) setSmtpPassword(data.smtp_password);
+                if (data.smtp_use_tls !== undefined) setSmtpUseTls(data.smtp_use_tls);
+            }
+        } catch (err) {
+            console.error('Failed to load email config:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSave = async (e) => {
+        if (e) e.preventDefault();
+        try {
+            setSaving(true);
+            setFeedback(null);
+            const payload = {
+                provider,
+                api_key: apiKey,
+                from_name: fromName,
+                from_email: fromEmail,
+                reply_to: replyTo,
+                is_active: isActive,
+                smtp_host: smtpHost,
+                smtp_port: parseInt(smtpPort, 10) || 587,
+                smtp_username: smtpUsername,
+                smtp_password: smtpPassword,
+                smtp_use_tls: smtpUseTls
+            };
+            await apiClient.emailConfig.save(payload);
+            setFeedback({ type: 'success', message: 'Email configuration stored in database successfully!' });
+        } catch (err) {
+            setFeedback({ type: 'error', message: err.message || 'Failed to save configuration.' });
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleTestSend = async () => {
+        if (!testEmail) {
+            setFeedback({ type: 'error', message: 'Please enter a recipient email address to test dispatch.' });
+            return;
+        }
+        try {
+            setTesting(true);
+            setFeedback(null);
+            const res = await apiClient.emailConfig.testSend(testEmail);
+            const msgId = res.message_id ? ` (Resend ID: ${res.message_id})` : '';
+            setFeedback({
+                type: 'success',
+                message: `Verification email dispatched successfully to ${testEmail}!${msgId}`
+            });
+        } catch (err) {
+            setFeedback({
+                type: 'error',
+                message: `Dispatch failed: ${err.message || 'Check your Resend API Key or sender address domain.'}`
+            });
+        } finally {
+            setTesting(false);
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="portal-content-card" style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
+                <RefreshCw size={24} className="spin" style={{ marginBottom: '12px' }} />
+                <div>Loading Email Gateway Configuration...</div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="animations-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
+            {feedback && (
+                <div style={{
+                    padding: '14px 20px',
+                    borderRadius: '10px',
+                    background: feedback.type === 'success' ? '#ecfdf5' : '#fef2f2',
+                    border: `1px solid ${feedback.type === 'success' ? '#a7f3d0' : '#fecaca'}`,
+                    color: feedback.type === 'success' ? '#065f46' : '#991b1b',
+                    fontSize: '14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px'
+                }}>
+                    {feedback.type === 'success' ? <Check size={18} /> : <AlertTriangle size={18} />}
+                    <div style={{ flex: 1, fontWeight: 500 }}>{feedback.message}</div>
+                    <button onClick={() => setFeedback(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit' }}>
+                        <X size={16} />
+                    </button>
+                </div>
+            )}
+
+            {/* Provider Selection Ribbon */}
+            <div className="portal-content-card" style={{ padding: '25px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                    <div>
+                        <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: '#0f172a' }}>Email Gateway Provider</h3>
+                        <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748b' }}>
+                            Choose the dispatch engine for Royal Software Solutions client quotations, notifications, and communications.
+                        </p>
+                    </div>
+                    <span style={{
+                        padding: '6px 14px',
+                        borderRadius: '20px',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        background: isActive ? '#dcfce7' : '#fee2e2',
+                        color: isActive ? '#15803d' : '#b91c1c'
+                    }}>
+                        {isActive ? 'STATUS: ACTIVE' : 'STATUS: DISABLED'}
+                    </span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <div
+                        onClick={() => setProvider('RESEND')}
+                        style={{
+                            padding: '20px',
+                            borderRadius: '12px',
+                            border: `2px solid ${provider === 'RESEND' ? '#005f73' : '#e2e8f0'}`,
+                            background: provider === 'RESEND' ? '#f0fdfa' : '#ffffff',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '8px'
+                        }}
+                    >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontWeight: 700, fontSize: '15px', color: '#005f73' }}>Resend REST API (Recommended)</span>
+                            <span style={{ background: '#0a9396', color: '#ffffff', fontSize: '10px', fontWeight: 800, padding: '2px 8px', borderRadius: '12px' }}>CLOUD API</span>
+                        </div>
+                        <p style={{ margin: 0, fontSize: '12px', color: '#64748b', lineHeight: 1.5 }}>
+                            High deliverability transactional email API. Native PDF attachments, live analytics, and fast cloud delivery.
+                        </p>
+                    </div>
+
+                    <div
+                        onClick={() => setProvider('SMTP')}
+                        style={{
+                            padding: '20px',
+                            borderRadius: '12px',
+                            border: `2px solid ${provider === 'SMTP' ? '#005f73' : '#e2e8f0'}`,
+                            background: provider === 'SMTP' ? '#f0fdfa' : '#ffffff',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '8px'
+                        }}
+                    >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontWeight: 700, fontSize: '15px', color: '#1e293b' }}>Standard SMTP Server</span>
+                            <span style={{ background: '#e2e8f0', color: '#475569', fontSize: '10px', fontWeight: 800, padding: '2px 8px', borderRadius: '12px' }}>FALLBACK</span>
+                        </div>
+                        <p style={{ margin: 0, fontSize: '12px', color: '#64748b', lineHeight: 1.5 }}>
+                            Direct connection through a traditional mail server or host with SMTP credentials.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            {/* Provider Configuration Form */}
+            {provider === 'RESEND' ? (
+                <div className="portal-content-card" style={{ padding: '30px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+                        <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: '#005f73', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+                            <Mail size={20} />
+                        </div>
+                        <div>
+                            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700 }}>Resend Gateway Credentials & Headers</h3>
+                            <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#64748b' }}>
+                                Stored securely in database table <code>email_integration_config</code> for Company ID 2
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="settings-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                        <div style={{ gridColumn: 'span 2' }}>
+                            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>
+                                Resend API Key <span style={{ color: '#ef4444' }}>*</span>
+                            </label>
+                            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                <input
+                                    type={showKey ? 'text' : 'password'}
+                                    value={apiKey}
+                                    onChange={(e) => setApiKey(e.target.value)}
+                                    placeholder="re_xxxxxxxxxxxxxxxxxxxxxxxx"
+                                    style={{
+                                        width: '100%',
+                                        padding: '11px 45px 11px 15px',
+                                        borderRadius: '10px',
+                                        border: '1px solid #cbd5e1',
+                                        fontFamily: showKey ? 'monospace' : 'inherit',
+                                        fontSize: '14px'
+                                    }}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowKey(!showKey)}
+                                    style={{
+                                        position: 'absolute',
+                                        right: '12px',
+                                        background: 'none',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        color: '#64748b',
+                                        fontSize: '12px',
+                                        fontWeight: 600
+                                    }}
+                                >
+                                    {showKey ? 'Hide' : 'Show'}
+                                </button>
+                            </div>
+                            <span style={{ fontSize: '12px', color: '#64748b', marginTop: '6px', display: 'block' }}>
+                                Obtain your key from your dashboard at <a href="https://resend.com/api-keys" target="_blank" rel="noreferrer" style={{ color: '#005f73', fontWeight: 600 }}>resend.com/api-keys</a>.
+                            </span>
+                        </div>
+
+                        <div>
+                            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>
+                                Sender Display Name
+                            </label>
+                            <input
+                                type="text"
+                                value={fromName}
+                                onChange={(e) => setFromName(e.target.value)}
+                                placeholder="Royal Software Solutions"
+                                style={{ width: '100%', padding: '11px 15px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '14px' }}
+                            />
+                        </div>
+
+                        <div>
+                            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>
+                                Sender Email Address <span style={{ color: '#ef4444' }}>*</span>
+                            </label>
+                            <input
+                                type="email"
+                                value={fromEmail}
+                                onChange={(e) => setFromEmail(e.target.value)}
+                                placeholder="onboarding@resend.dev"
+                                style={{ width: '100%', padding: '11px 15px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '14px' }}
+                            />
+                            <span style={{ fontSize: '11px', color: '#64748b', marginTop: '5px', display: 'block' }}>
+                                For sandbox/testing, use <code>onboarding@resend.dev</code>. For production, enter your verified domain email.
+                            </span>
+                        </div>
+
+                        <div>
+                            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>
+                                Reply-To Email Address (Optional)
+                            </label>
+                            <input
+                                type="email"
+                                value={replyTo}
+                                onChange={(e) => setReplyTo(e.target.value)}
+                                placeholder="info@royalsoftwaresolutions.com"
+                                style={{ width: '100%', padding: '11px 15px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '14px' }}
+                            />
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '30px' }}>
+                            <input
+                                type="checkbox"
+                                id="activeToggle"
+                                checked={isActive}
+                                onChange={(e) => setIsActive(e.target.checked)}
+                                style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                            />
+                            <label htmlFor="activeToggle" style={{ fontSize: '13px', fontWeight: 600, color: '#334155', cursor: 'pointer' }}>
+                                Enable Resend as Primary Communications Gateway
+                            </label>
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '30px' }}>
+                        <button
+                            type="button"
+                            onClick={handleSave}
+                            disabled={saving}
+                            className="btn-primary"
+                            style={{ padding: '12px 28px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}
+                        >
+                            <Save size={16} />
+                            {saving ? 'Saving to Database...' : 'Save Configuration'}
+                        </button>
+                    </div>
+                </div>
+            ) : (
+                <div className="portal-content-card" style={{ padding: '30px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+                        <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+                            <Server size={20} />
+                        </div>
+                        <div>
+                            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700 }}>Custom SMTP Server Details</h3>
+                            <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#64748b' }}>Configure custom host and port for outgoing mail</p>
+                        </div>
+                    </div>
+
+                    <div className="settings-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                        <div>
+                            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>SMTP Host</label>
+                            <input type="text" value={smtpHost} onChange={(e) => setSmtpHost(e.target.value)} style={{ width: '100%', padding: '11px 15px', borderRadius: '10px', border: '1px solid #cbd5e1' }} />
+                        </div>
+                        <div>
+                            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>Port</label>
+                            <input type="text" value={smtpPort} onChange={(e) => setSmtpPort(e.target.value)} style={{ width: '100%', padding: '11px 15px', borderRadius: '10px', border: '1px solid #cbd5e1' }} />
+                        </div>
+                        <div>
+                            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>Username</label>
+                            <input type="text" value={smtpUsername} onChange={(e) => setSmtpUsername(e.target.value)} style={{ width: '100%', padding: '11px 15px', borderRadius: '10px', border: '1px solid #cbd5e1' }} />
+                        </div>
+                        <div>
+                            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>Password</label>
+                            <input type="password" value={smtpPassword} onChange={(e) => setSmtpPassword(e.target.value)} placeholder="••••••••••••" style={{ width: '100%', padding: '11px 15px', borderRadius: '10px', border: '1px solid #cbd5e1' }} />
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '30px' }}>
+                        <button
+                            type="button"
+                            onClick={handleSave}
+                            disabled={saving}
+                            className="btn-primary"
+                            style={{ padding: '12px 28px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}
+                        >
+                            <Save size={16} />
+                            {saving ? 'Saving...' : 'Save Configuration'}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Test Connection / Dispatch Live Email Suite */}
+            <div className="portal-content-card" style={{ padding: '25px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                <h4 style={{ margin: '0 0 8px 0', fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>
+                    Live Verification Test Suite
+                </h4>
+                <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#64748b' }}>
+                    Send an instantaneous test dispatch through your configured {provider === 'RESEND' ? 'Resend REST API' : 'SMTP'} gateway to confirm that Royal Software Solutions can deliver proposals and documents.
+                </p>
+
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center', maxWidth: '600px' }}>
+                    <input
+                        type="email"
+                        value={testEmail}
+                        onChange={(e) => setTestEmail(e.target.value)}
+                        placeholder="Enter your email to receive test (e.g. james@example.com)"
+                        style={{
+                            flex: 1,
+                            padding: '11px 15px',
+                            borderRadius: '10px',
+                            border: '1px solid #cbd5e1',
+                            fontSize: '14px',
+                            background: '#ffffff'
+                        }}
+                    />
+                    <button
+                        type="button"
+                        onClick={handleTestSend}
+                        disabled={testing}
+                        className="btn-outline"
+                        style={{
+                            padding: '11px 20px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            fontWeight: 600,
+                            whiteSpace: 'nowrap'
+                        }}
+                    >
+                        {testing ? <RefreshCw size={14} className="spin" /> : <Send size={14} />}
+                        {testing ? 'Dispatching...' : 'Send Live Test Email'}
+                    </button>
+                </div>
+            </div>
+
+            {/* Automated Notification Options */}
+            <div className="portal-content-card" style={{ padding: '30px' }}>
+                <h3 style={{ margin: '0 0 25px 0' }}>Automated Commercial Notifications</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                    <ToggleItem label="Sales Quotations & Proposals" desc="Automatically send compiled quotation PDFs to prospective clients via Resend." active />
+                    <ToggleItem label="Customer Follow-up Reminders" desc="Trigger scheduled reminder dispatches based on activity due dates." active />
+                    <ToggleItem label="Invoice & Receipt Delivery" desc="Send formal payment receipts and invoices upon payment recording." active />
+                    <ToggleItem label="System Maintenance Alerts" desc="Broadcast operational maintenance emails to company staff." />
+                </div>
             </div>
         </div>
-    </div>
-);
+    );
+};
+
 
 const IntegrationsSettings = () => (
     <div className="animations-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>

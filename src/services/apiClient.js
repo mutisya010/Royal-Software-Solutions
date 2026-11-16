@@ -22,7 +22,17 @@ const handleResponse = async (response) => {
     if (contentType && contentType.includes("application/json")) {
         const data = await response.json();
         if (!response.ok) {
-            throw new Error(data.detail || data.error || data.message || 'API request failed.');
+            let message = data.detail || data.error || data.message;
+            if (!message && data && typeof data === 'object') {
+                // DRF field validation errors: { field: ["msg"] }
+                message = Object.entries(data)
+                    .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(' ') : v}`)
+                    .join(' | ');
+            }
+            const error = new Error(message || 'API request failed.');
+            error.status = response.status;
+            error.data = data;
+            throw error;
         }
         return data;
     }
@@ -98,6 +108,21 @@ export const apiClient = {
         return handleResponse(response);
     },
 
+    postBlob: async (endpoint, body = {}) => {
+        const response = await fetch(`${API_URL}${endpoint}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...getAuthHeaders()
+            },
+            body: JSON.stringify(body)
+        });
+        if (!response.ok) {
+            throw new Error(`PDF generation request failed: ${response.statusText}`);
+        }
+        return await response.blob();
+    },
+
     // Authentication Services
     auth: {
         login: async (username, password) => {
@@ -138,6 +163,19 @@ export const apiClient = {
             const userStr = localStorage.getItem(USER_KEY);
             return userStr ? JSON.parse(userStr) : null;
         },
+
+        getProfile: async () => {
+            try {
+                const user = await apiClient.get('/api/v1/accounts/users/me/');
+                if (user && user.id) {
+                    localStorage.setItem(USER_KEY, JSON.stringify(user));
+                    return user;
+                }
+            } catch (err) {
+                console.warn('Failed to refresh user profile from backend, using cached profile:', err);
+            }
+            return apiClient.auth.getCurrentUser();
+        },
         
         isAuthenticated: () => {
             return !!localStorage.getItem(TOKEN_KEY);
@@ -170,6 +208,36 @@ export const apiClient = {
             const data = await apiClient.get('/api/v1/utility/cities/', { params: { state: regionId } });
             return data.results || data;
         }
+    },
+
+    // Roles & Access Control Services (Django Groups, Users & Permissions)
+    roles: {
+        list: async () => {
+            const data = await apiClient.get('/api/v1/accounts/roles/');
+            return data.results || data;
+        },
+        get: async (id) => apiClient.get(`/api/v1/accounts/roles/${id}/`),
+        create: async (roleData) => apiClient.post('/api/v1/accounts/roles/', roleData),
+        update: async (id, roleData) => apiClient.patch(`/api/v1/accounts/roles/${id}/`, roleData),
+        delete: async (id) => apiClient.delete(`/api/v1/accounts/roles/${id}/`),
+    },
+
+    users: {
+        list: async () => {
+            const data = await apiClient.get('/api/v1/accounts/users/');
+            return data.results || data;
+        },
+        get: async (id) => apiClient.get(`/api/v1/accounts/users/${id}/`),
+        create: async (userData) => apiClient.post('/api/v1/accounts/users/', userData),
+        update: async (id, userData) => apiClient.patch(`/api/v1/accounts/users/${id}/`, userData),
+        delete: async (id) => apiClient.delete(`/api/v1/accounts/users/${id}/`),
+    },
+
+    permissions: {
+        list: async () => {
+            const data = await apiClient.get('/api/v1/accounts/permissions/');
+            return data.results || data;
+        },
     },
 
     // Client Management (Custom App)
@@ -230,6 +298,12 @@ export const apiClient = {
             },
             delete: async (id) => {
                 return apiClient.delete(`/api/v1/accounting/invoices/${id}/`);
+            },
+            issue: async (id) => {
+                return apiClient.post(`/api/v1/accounting/invoices/${id}/issue/`, {});
+            },
+            void: async (id) => {
+                return apiClient.post(`/api/v1/accounting/invoices/${id}/void/`, {});
             }
         },
         suppliers: {
@@ -248,6 +322,15 @@ export const apiClient = {
             },
             delete: async (id) => {
                 return apiClient.delete(`/api/v1/accounting/expenses/${id}/`);
+            },
+            approve: async (id) => {
+                return apiClient.post(`/api/v1/accounting/expenses/${id}/approve/`, {});
+            },
+            reject: async (id) => {
+                return apiClient.post(`/api/v1/accounting/expenses/${id}/reject/`, {});
+            },
+            void: async (id) => {
+                return apiClient.post(`/api/v1/accounting/expenses/${id}/void/`, {});
             }
         },
         payments: {
@@ -257,12 +340,55 @@ export const apiClient = {
             },
             create: async (paymentData) => {
                 return apiClient.post('/api/v1/accounting/payments/', paymentData);
+            },
+            reverse: async (id) => {
+                return apiClient.post(`/api/v1/accounting/payments/${id}/reverse/`, {});
             }
         },
         transactions: {
             list: async () => {
                 const data = await apiClient.get('/api/v1/accounting/transactions/');
                 return data.results || data;
+            }
+        },
+        journals: {
+            list: async (params = {}) => {
+                const q = new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== '')).toString();
+                const data = await apiClient.get(`/api/v1/accounting/journals/${q ? '?' + q : ''}`);
+                return data.results || data;
+            },
+            create: async (payload) => {
+                return apiClient.post('/api/v1/accounting/journals/', payload);
+            },
+            reverse: async (id, reason = '') => {
+                return apiClient.post(`/api/v1/accounting/journals/${id}/reverse/`, { reason });
+            }
+        },
+        reports: {
+            summary: async (params = {}) => {
+                const q = new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== '')).toString();
+                return apiClient.get(`/api/v1/accounting/reports/summary/${q ? '?' + q : ''}`);
+            },
+            trialBalance: async (params = {}) => {
+                const q = new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== '')).toString();
+                return apiClient.get(`/api/v1/accounting/reports/trial-balance/${q ? '?' + q : ''}`);
+            },
+            profitAndLoss: async (params = {}) => {
+                const q = new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== '')).toString();
+                return apiClient.get(`/api/v1/accounting/reports/profit-and-loss/${q ? '?' + q : ''}`);
+            },
+            balanceSheet: async (params = {}) => {
+                const q = new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== '')).toString();
+                return apiClient.get(`/api/v1/accounting/reports/balance-sheet/${q ? '?' + q : ''}`);
+            },
+            vatSummary: async (params = {}) => {
+                const q = new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== '')).toString();
+                return apiClient.get(`/api/v1/accounting/reports/vat-summary/${q ? '?' + q : ''}`);
+            },
+            aging: async () => apiClient.get('/api/v1/accounting/reports/aging/'),
+            ledger: async (params = {}) => {
+                const q = new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== '')).toString();
+                return apiClient.get(`/api/v1/accounting/reports/ledger/${q ? '?' + q : ''}`);
             }
         },
         accountTypes: {
@@ -353,7 +479,8 @@ export const apiClient = {
                 const data = await apiClient.get('/api/v1/royalsoftwares/quotations/');
                 return data.results || data;
             },
-            create: async (payload) => apiClient.post('/api/v1/royalsoftwares/quotations/', payload)
+            create: async (payload) => apiClient.post('/api/v1/royalsoftwares/quotations/', payload),
+            convertToInvoice: async (id) => apiClient.post(`/api/v1/royalsoftwares/quotations/${id}/convert-to-invoice/`, {})
         },
         quotationRequests: {
             list: async () => {
@@ -361,7 +488,8 @@ export const apiClient = {
                 return data.results || data;
             },
             create: async (payload) => apiClient.post('/api/v1/royalsoftwares/quotation-requests/', payload),
-            update: async (id, payload) => apiClient.put(`/api/v1/royalsoftwares/quotation-requests/${id}/`, payload)
+            update: async (id, payload) => apiClient.put(`/api/v1/royalsoftwares/quotation-requests/${id}/`, payload),
+            convertToQuotation: async (id) => apiClient.post(`/api/v1/royalsoftwares/quotation-requests/${id}/convert-to-quotation/`, {})
         },
         sales: {
             list: async () => {
@@ -375,7 +503,15 @@ export const apiClient = {
                 const data = await apiClient.get('/api/v1/royalsoftwares/activities/');
                 return data.results || data;
             },
-            create: async (payload) => apiClient.post('/api/v1/royalsoftwares/activities/', payload)
+            create: async (payload) => apiClient.post('/api/v1/royalsoftwares/activities/', payload),
+            toggleStatus: async (id) => apiClient.post(`/api/v1/royalsoftwares/activities/${id}/toggle-status/`, {})
+        },
+        communications: {
+            list: async () => {
+                const data = await apiClient.get('/api/v1/clients_management/communications/');
+                return data.results || data;
+            },
+            sendMessage: async (payload) => apiClient.post('/api/v1/clients_management/communications/send-message/', payload)
         }
     },
 
@@ -410,6 +546,130 @@ export const apiClient = {
         save: (projects) => {
             localStorage.setItem('royal_projects', JSON.stringify(projects));
             return projects;
+        }
+    },
+
+    // Document Design Studio
+    documents: {
+        getBranding: async () => apiClient.get('/api/v1/documents/branding/'),
+        updateBranding: async (data) => apiClient.put('/api/v1/documents/branding/', data),
+        getTemplates: async (params) => apiClient.get('/api/v1/documents/templates/', { params }),
+        getTemplate: async (id) => apiClient.get(`/api/v1/documents/templates/${id}/`),
+        createTemplate: async (data) => apiClient.post('/api/v1/documents/templates/', data),
+        updateTemplate: async (id, data) => apiClient.put(`/api/v1/documents/templates/${id}/`, data),
+        deleteTemplate: async (id) => apiClient.delete(`/api/v1/documents/templates/${id}/`),
+        publishTemplate: async (id) => apiClient.post(`/api/v1/documents/templates/${id}/publish/`, {}),
+        duplicateTemplate: async (id) => apiClient.post(`/api/v1/documents/templates/${id}/duplicate/`, {}),
+        getVersions: async (id) => apiClient.get(`/api/v1/documents/templates/${id}/versions/`),
+        rollbackVersion: async (id, versionNumber) => apiClient.post(`/api/v1/documents/templates/${id}/rollback/${versionNumber}/`, {}),
+        previewPdf: async (id, overrides = {}) => apiClient.postBlob(`/api/v1/documents/templates/${id}/preview-pdf/`, overrides),
+        previewLivePdf: async (data) => apiClient.postBlob('/api/v1/documents/templates/preview-live/', data),
+        generateDocument: async (data) => apiClient.post('/api/v1/documents/generate/', data),
+        getGeneratedDocuments: async (params) => apiClient.get('/api/v1/documents/generated/', { params }),
+        getAssets: async () => apiClient.get('/api/v1/documents/assets/'),
+        uploadAsset: async (formData) => apiClient.post('/api/v1/documents/assets/', formData),
+    },
+
+    emailConfig: {
+        get: async () => {
+            const data = await apiClient.get('/api/v1/integrations/email-config/');
+            return Array.isArray(data) ? (data[0] || null) : (data.results ? data.results[0] : data);
+        },
+        save: async (payload) => {
+            return apiClient.post('/api/v1/integrations/email-config/', payload);
+        },
+        testSend: async (toEmail) => {
+            return apiClient.post('/api/v1/integrations/email-config/test-send/', { to_email: toEmail });
+        }
+    },
+
+    planner: {
+        dashboard: {
+            get: async () => apiClient.get('/api/v1/planner/dashboard/')
+        },
+        tasks: {
+            list: async (params = {}) => {
+                const data = await apiClient.get('/api/v1/planner/tasks/', { params });
+                return Array.isArray(data) ? data : (data.results || []);
+            },
+            create: async (taskData) => apiClient.post('/api/v1/planner/tasks/', taskData),
+            update: async (id, taskData) => apiClient.patch(`/api/v1/planner/tasks/${id}/`, taskData),
+            delete: async (id) => apiClient.delete(`/api/v1/planner/tasks/${id}/`),
+            toggleStatus: async (id) => apiClient.post(`/api/v1/planner/tasks/${id}/toggle-status/`, {}),
+            addComment: async (id, comment) => apiClient.post(`/api/v1/planner/tasks/${id}/add-comment/`, { comment }),
+            addSubtask: async (id, subtaskData) => apiClient.post(`/api/v1/planner/tasks/${id}/add-subtask/`, subtaskData),
+            addChecklist: async (id, text) => apiClient.post(`/api/v1/planner/tasks/${id}/add-checklist/`, { text }),
+            toggleChecklist: async (itemId) => apiClient.post('/api/v1/planner/tasks/toggle-checklist/', { item_id: itemId }),
+            toggleSubtask: async (subtaskId) => apiClient.post('/api/v1/planner/tasks/toggle-subtask/', { subtask_id: subtaskId })
+        },
+        projects: {
+            list: async (params = {}) => {
+                const data = await apiClient.get('/api/v1/planner/projects/', { params });
+                return Array.isArray(data) ? data : (data.results || []);
+            },
+            create: async (data) => apiClient.post('/api/v1/planner/projects/', data),
+            update: async (id, data) => apiClient.patch(`/api/v1/planner/projects/${id}/`, data),
+            delete: async (id) => apiClient.delete(`/api/v1/planner/projects/${id}/`),
+            addMilestone: async (id, milestoneData) => apiClient.post(`/api/v1/planner/projects/${id}/add-milestone/`, milestoneData)
+        },
+        events: {
+            list: async (params = {}) => {
+                const data = await apiClient.get('/api/v1/planner/events/', { params });
+                return Array.isArray(data) ? data : (data.results || []);
+            },
+            create: async (data) => apiClient.post('/api/v1/planner/events/', data),
+            update: async (id, data) => apiClient.patch(`/api/v1/planner/events/${id}/`, data),
+            delete: async (id) => apiClient.delete(`/api/v1/planner/events/${id}/`),
+            rsvp: async (id, status) => apiClient.post(`/api/v1/planner/events/${id}/rsvp/`, { status })
+        },
+        meetings: {
+            list: async (params = {}) => {
+                const data = await apiClient.get('/api/v1/planner/meetings/', { params });
+                return Array.isArray(data) ? data : (data.results || []);
+            },
+            create: async (data) => apiClient.post('/api/v1/planner/meetings/', data),
+            update: async (id, data) => apiClient.patch(`/api/v1/planner/meetings/${id}/`, data),
+            addNote: async (id, noteData) => apiClient.post(`/api/v1/planner/meetings/${id}/add-note/`, noteData),
+            convertActionItem: async (id, taskData) => apiClient.post(`/api/v1/planner/meetings/${id}/convert-action-item/`, taskData)
+        },
+        goals: {
+            list: async (params = {}) => {
+                const data = await apiClient.get('/api/v1/planner/goals/', { params });
+                return Array.isArray(data) ? data : (data.results || []);
+            },
+            create: async (data) => apiClient.post('/api/v1/planner/goals/', data),
+            update: async (id, data) => apiClient.patch(`/api/v1/planner/goals/${id}/`, data),
+            updateProgress: async (id, current_value) => apiClient.post(`/api/v1/planner/goals/${id}/update-progress/`, { current_value })
+        },
+        habits: {
+            list: async () => {
+                const data = await apiClient.get('/api/v1/planner/habits/');
+                return Array.isArray(data) ? data : (data.results || []);
+            },
+            create: async (data) => apiClient.post('/api/v1/planner/habits/', data),
+            update: async (id, data) => apiClient.patch(`/api/v1/planner/habits/${id}/`, data),
+            delete: async (id) => apiClient.delete(`/api/v1/planner/habits/${id}/`),
+            toggleToday: async (id) => apiClient.post(`/api/v1/planner/habits/${id}/toggle-today/`, {})
+        },
+        notes: {
+            list: async (params = {}) => {
+                const data = await apiClient.get('/api/v1/planner/notes/', { params });
+                return Array.isArray(data) ? data : (data.results || []);
+            },
+            create: async (data) => apiClient.post('/api/v1/planner/notes/', data),
+            update: async (id, data) => apiClient.patch(`/api/v1/planner/notes/${id}/`, data),
+            delete: async (id) => apiClient.delete(`/api/v1/planner/notes/${id}/`),
+            togglePin: async (id) => apiClient.post(`/api/v1/planner/notes/${id}/toggle-pin/`, {})
+        },
+        reminders: {
+            list: async () => {
+                const data = await apiClient.get('/api/v1/planner/reminders/');
+                return Array.isArray(data) ? data : (data.results || []);
+            },
+            dismiss: async (id) => apiClient.post(`/api/v1/planner/reminders/${id}/dismiss/`, {})
+        },
+        analytics: {
+            get: async () => apiClient.get('/api/v1/planner/analytics/')
         }
     },
 

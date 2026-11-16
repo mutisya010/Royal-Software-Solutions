@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
     LayoutDashboard, List, PlusCircle, Search, Filter,
     MoreVertical, Briefcase, CheckCircle, Clock, AlertTriangle,
@@ -51,7 +52,15 @@ const projectsData = [
 ];
 
 const ProjectManagement = () => {
-    const [view, setView] = useState('dashboard'); // dashboard, list, create, details
+    const [searchParams, setSearchParams] = useSearchParams();
+    const urlView = searchParams.get('view');
+    const [view, setView] = useState(urlView || 'dashboard'); // dashboard, list, create, details
+
+    useEffect(() => {
+        if (urlView && urlView !== view) {
+            setView(urlView);
+        }
+    }, [urlView]);
     const [selectedProject, setSelectedProject] = useState(null);
     const [userRole, setUserRole] = useState('Admin'); // Admin, PM, Staff, Client
 
