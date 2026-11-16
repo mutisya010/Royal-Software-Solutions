@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { apiClient } from '../services/apiClient';
+import ClientAccountModal from './clients/ClientAccountModal';
+import ClientProfileModal from './clients/ClientProfileModal';
+import EmailGatewayConfigModal from './clients/EmailGatewayConfigModal';
 import {
     Users, UserPlus, Building2, Briefcase, FileText,
     MessageSquare, Search, Filter, Plus, ChevronRight,
     MoreVertical, Mail, Phone, MapPin, Globe, Tag,
     Download, Layout, PieChart as PieChartIcon, BarChart3,
     TrendingUp, Activity, CheckCircle2, AlertCircle, Clock, DollarSign, ArrowUpDown,
-    Trash2, Eye, Upload, X, ExternalLink
+    Trash2, Eye, Upload, X, ExternalLink, Edit3
 } from 'lucide-react';
 import {
     ResponsiveContainer, AreaChart, Area, XAxis, YAxis,
@@ -215,58 +218,58 @@ const ClientManagement = () => {
         }
     };
 
+    // In-Context Modals State
+    const [accountModalOpen, setAccountModalOpen] = useState(false);
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [selectedClientForEdit, setSelectedClientForEdit] = useState(null);
+    const [profileModalOpen, setProfileModalOpen] = useState(false);
+    const [selectedClientForProfile, setSelectedClientForProfile] = useState(null);
+    const [emailConfigModalOpen, setEmailConfigModalOpen] = useState(false);
+
+    const handleOpenCreateModal = () => {
+        setSelectedClientForEdit(null);
+        setIsEditMode(false);
+        setAccountModalOpen(true);
+    };
+
+    const handleOpenEditModal = (client) => {
+        setSelectedClientForEdit(client);
+        setIsEditMode(true);
+        setAccountModalOpen(true);
+    };
+
+    const handleOpenProfileModal = (client) => {
+        setSelectedClientForProfile(client);
+        setProfileModalOpen(true);
+    };
+
+    const handleSaveClientAccount = async (submitData, clientId) => {
+        try {
+            if (clientId) {
+                const updated = await apiClient.clients.update(clientId, submitData);
+                setClients(prev => prev.map(c => c.id === clientId ? { ...c, ...updated } : c));
+                if (selectedClientForProfile?.id === clientId) {
+                    setSelectedClientForProfile(prev => ({ ...prev, ...updated }));
+                }
+                showToast('Client account updated successfully!', 'success');
+            } else {
+                const created = await apiClient.clients.create(submitData);
+                setClients(prev => [created, ...prev]);
+                showToast('New client registered successfully!', 'success');
+            }
+        } catch (err) {
+            console.error('Failed to save client:', err);
+            showToast(err.message || 'Failed to save client.', 'error');
+            throw err;
+        }
+    };
+
     const handleEditClick = (client) => {
-        setFormData({
-            client_type: client.client_type || 'CORPORATE',
-            name: client.name || '',
-            abbreviation: client.abbreviation || '',
-            contact_person_name: client.contact_person_name || '',
-            contact_person_email: client.contact_person_email || '',
-            contact_person_phone: client.contact_person_phone || '',
-            client_category: client.client_category || '',
-            client_company_name: client.client_company_name || '',
-            industry: client.industry || '',
-            manager: client.manager || '',
-            email: client.email || '',
-            phone: client.phone || '',
-            address: client.address || '',
-            country: client.country || '',
-            state: client.state || '',
-            city: client.city || '',
-            tax_id: client.tax_id || '',
-            notes: client.notes || '',
-            credit_limit: client.credit_limit || '0.00',
-            is_active: client.is_active !== false,
-            logo: null
-        });
-        setView('edit');
+        handleOpenEditModal(client);
     };
 
     const handleAddNewClick = () => {
-        setFormData({
-            client_type: 'CORPORATE',
-            name: '',
-            abbreviation: '',
-            contact_person_name: '',
-            contact_person_email: '',
-            contact_person_phone: '',
-            client_category: '',
-            client_company_name: '',
-            industry: '',
-            manager: '',
-            email: '',
-            phone: '',
-            address: '',
-            country: '',
-            state: '',
-            city: '',
-            tax_id: '',
-            notes: '',
-            credit_limit: '0.00',
-            is_active: true,
-            logo: null
-        });
-        setView('registration');
+        handleOpenCreateModal();
     };
 
     return (
@@ -424,11 +427,19 @@ const ClientManagement = () => {
                 </div>
                 <div style={{ display: 'flex', gap: '15px' }}>
                     <button
-                        onClick={handleAddNewClick}
+                        onClick={handleOpenCreateModal}
                         className="btn-primary"
                         style={{ padding: '10px 20px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}
                     >
                         <UserPlus size={18} /> Add New Client
+                    </button>
+                    <button
+                        onClick={() => setEmailConfigModalOpen(true)}
+                        className="btn-outline"
+                        style={{ padding: '10px 18px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}
+                        title="Configure Resend API Key in Database"
+                    >
+                        <Mail size={16} /> Email Gateway
                     </button>
                 </div>
             </div>
@@ -451,7 +462,16 @@ const ClientManagement = () => {
 
             {/* Dynamic View */}
             {view === 'dashboard' && <ClientDashboard clients={clients} />}
-            {view === 'list' && <ClientListSection clients={clients} onViewProfile={(id) => { setActiveClientId(id); setView('profile'); }} />}
+            {view === 'list' && (
+                <ClientListSection 
+                    clients={clients} 
+                    onViewProfile={(clientOrId) => {
+                        const cl = typeof clientOrId === 'object' ? clientOrId : clients.find(c => c.id === clientOrId);
+                        if (cl) handleOpenProfileModal(cl);
+                    }} 
+                    onEditClient={handleOpenEditModal}
+                />
+            )}
             {(view === 'registration' || view === 'edit') && (
                 <ClientRegistrationForm 
                     formData={formData} 
@@ -511,6 +531,41 @@ const ClientManagement = () => {
                     </button>
                 </div>
             )}
+
+            {/* In-Context Modals */}
+            <ClientAccountModal
+                isOpen={accountModalOpen}
+                onClose={() => setAccountModalOpen(false)}
+                onSave={handleSaveClientAccount}
+                isEdit={isEditMode}
+                client={selectedClientForEdit}
+                countries={countries}
+                regions={regions}
+                cities={cities}
+            />
+
+            <ClientProfileModal
+                isOpen={profileModalOpen}
+                onClose={() => setProfileModalOpen(false)}
+                client={selectedClientForProfile}
+                onEdit={(client) => {
+                    handleOpenEditModal(client);
+                }}
+                onDelete={async (id) => {
+                    if (window.confirm("Are you sure you want to delete this client?")) {
+                        await handleDeleteClient(id);
+                        setProfileModalOpen(false);
+                    }
+                }}
+                showToast={showToast}
+                onOpenEmailConfig={() => setEmailConfigModalOpen(true)}
+            />
+
+            <EmailGatewayConfigModal
+                isOpen={emailConfigModalOpen}
+                onClose={() => setEmailConfigModalOpen(false)}
+                showToast={showToast}
+            />
         </div>
     );
 };
@@ -651,7 +706,7 @@ const getAbbreviation = (name) => {
     return name.slice(0, 2).toUpperCase();
 };
 
-const ClientListSection = ({ clients, onViewProfile }) => {
+const ClientListSection = ({ clients, onViewProfile, onEditClient }) => {
     const [search, setSearch] = useState('');
     const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'ascending' });
 
@@ -807,13 +862,35 @@ const ClientListSection = ({ clients, onViewProfile }) => {
                                         </span>
                                     </td>
                                     <td>
-                                        <button 
-                                            onClick={() => onViewProfile(client.id)} 
-                                            className="client-view-btn"
-                                        >
-                                            View Profile
-                                            <ChevronRight size={14} />
-                                        </button>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <button 
+                                                onClick={() => onViewProfile(client)} 
+                                                className="client-view-btn"
+                                            >
+                                                View Profile
+                                                <ChevronRight size={14} />
+                                            </button>
+                                            {onEditClient && (
+                                                <button
+                                                    onClick={() => onEditClient(client)}
+                                                    style={{
+                                                        padding: '7px 10px',
+                                                        borderRadius: '8px',
+                                                        border: '1px solid #e2e8f0',
+                                                        background: 'white',
+                                                        color: '#475569',
+                                                        fontSize: '12px',
+                                                        cursor: 'pointer',
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        gap: '4px'
+                                                    }}
+                                                    title="Edit Client Account"
+                                                >
+                                                    <Edit3 size={13} />
+                                                </button>
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             );
