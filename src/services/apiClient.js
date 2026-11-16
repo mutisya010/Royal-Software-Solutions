@@ -128,8 +128,11 @@ export const apiClient = {
         login: async (username, password) => {
             const data = await apiClient.post('/api/v1/auth/login/', { username, password });
             if (data.access && data.user) {
-                if (!data.user.is_superuser && data.user.company_id !== 1) {
-                    throw new Error("Unauthorized: Your account does not belong to this portal.");
+                const u = data.user;
+                // Permit access to superusers, staff, team roles, and authorized users
+                const isAuthorized = u.is_superuser || u.is_staff || (Array.isArray(u.roles) && u.roles.length > 0) || !u.company_id || u.company_id === 1;
+                if (!isAuthorized) {
+                    throw new Error("Unauthorized: Your account does not have access permissions for this portal.");
                 }
                 localStorage.setItem(TOKEN_KEY, data.access);
                 localStorage.setItem(USER_KEY, JSON.stringify(data.user));
@@ -144,8 +147,10 @@ export const apiClient = {
         verifyOtp: async (email, otpCode) => {
             const data = await apiClient.post('/api/v1/auth/otp-verify/', { email, otp_code: otpCode });
             if (data.access && data.user) {
-                if (!data.user.is_superuser && data.user.company_id !== 1) {
-                    throw new Error("Unauthorized: Your account does not belong to this portal.");
+                const u = data.user;
+                const isAuthorized = u.is_superuser || u.is_staff || (Array.isArray(u.roles) && u.roles.length > 0) || !u.company_id || u.company_id === 1;
+                if (!isAuthorized) {
+                    throw new Error("Unauthorized: Your account does not have access permissions for this portal.");
                 }
                 localStorage.setItem(TOKEN_KEY, data.access);
                 localStorage.setItem(USER_KEY, JSON.stringify(data.user));

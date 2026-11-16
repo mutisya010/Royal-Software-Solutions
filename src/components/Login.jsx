@@ -14,14 +14,29 @@ const Login = () => {
     const [error, setError] = useState('')
     const navigate = useNavigate()
 
+    const redirectUserBasedOnRole = (user) => {
+        const currentUser = user || apiClient.auth.getCurrentUser();
+        const isStaffOrSuper = currentUser?.is_superuser || currentUser?.is_staff || (
+            Array.isArray(currentUser?.roles) && currentUser.roles.some(r => 
+                ['admin', 'staff', 'manager', 'director', 'super admin', 'finance', 'sales', 'support'].includes(String(r).toLowerCase().trim())
+            )
+        );
+
+        if (isStaffOrSuper) {
+            navigate('/portal/admin/dashboard');
+        } else {
+            navigate('/portal/client/dashboard');
+        }
+    };
+
     const handlePasswordLogin = async (e) => {
         e.preventDefault()
         setIsLoading(true)
         setError('')
         
         try {
-            await apiClient.auth.login(email, password)
-            navigate('/portal/client/dashboard')
+            const data = await apiClient.auth.login(email, password)
+            redirectUserBasedOnRole(data?.user)
         } catch (err) {
             console.error('Password Login Error:', err)
             setError(err.message || 'Invalid email or password.')
@@ -52,8 +67,8 @@ const Login = () => {
         setError('')
         
         try {
-            await apiClient.auth.verifyOtp(email, otp)
-            navigate('/portal/client/dashboard')
+            const data = await apiClient.auth.verifyOtp(email, otp)
+            redirectUserBasedOnRole(data?.user)
         } catch (err) {
             console.error('OTP Verification Error:', err)
             setError(err.message || 'Invalid or expired verification code.')

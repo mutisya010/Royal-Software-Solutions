@@ -588,10 +588,10 @@ const ClientDashboard = ({ clients }) => {
     const outstandingDebt = clients.reduce((sum, c) => sum + parseFloat(c.outstanding_debt || 0), 0);
     
     const stats = [
-        { label: 'Total Clients', value: totalClients.toString(), trend: 'Sync', icon: <Users size={20} />, color: '#6366f1' },
-        { label: 'Active Clients', value: activeClients.toString(), trend: 'Active', icon: <CheckCircle2 size={20} />, color: '#10b981' },
-        { label: 'Outstanding Balance', value: `KES ${outstandingDebt.toLocaleString()}`, trend: 'Due', icon: <FileText size={20} />, color: '#ef4444' },
-        { label: 'Client Base Growth', value: `+${totalClients}`, trend: 'Stable', icon: <TrendingUp size={20} />, color: '#8b5cf6' }
+        { label: 'Total Clients', value: totalClients.toString(), trend: 'Sync', icon: <Users size={16} />, color: '#0f766e' },
+        { label: 'Active Clients', value: activeClients.toString(), trend: 'Active', icon: <CheckCircle2 size={16} />, color: '#10b981' },
+        { label: 'Outstanding Balance', value: `KES ${outstandingDebt.toLocaleString()}`, trend: 'Due', icon: <FileText size={16} />, color: '#ef4444' },
+        { label: 'Client Growth', value: `+${totalClients}`, trend: 'Stable', icon: <TrendingUp size={16} />, color: '#6366f1' }
     ];
 
     // Industries count
@@ -608,25 +608,28 @@ const ClientDashboard = ({ clients }) => {
 
     return (
         <div className="animations-fade-in">
-            {/* Stats Grid */}
-            <div className="client-stats-grid" style={{ gap: '20px', marginBottom: '30px' }}>
+            {/* Compact Stats Grid */}
+            <div className="client-stats-grid" style={{ gap: '12px', marginBottom: '16px' }}>
                 {stats.map((stat, i) => (
-                    <div key={i} className="portal-content-card" style={{ padding: '20px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                            <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: `${stat.color}15`, color: stat.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{stat.icon}</div>
-                            <span style={{ fontSize: '11px', fontWeight: 700, color: '#10b981', background: '#ecfdf5', padding: '2px 8px', borderRadius: '20px' }}>{stat.trend}</span>
+                    <div key={i} className="portal-content-card" style={{ padding: '12px 14px', borderRadius: '12px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: `${stat.color}15`, color: stat.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{stat.icon}</div>
+                            <span style={{ fontSize: '10px', fontWeight: 700, color: '#10b981', background: '#ecfdf5', padding: '1px 7px', borderRadius: '12px' }}>{stat.trend}</span>
                         </div>
-                        <h4 style={{ margin: '15px 0 5px 0', fontSize: '13px', color: '#64748b', fontWeight: 600 }}>{stat.label}</h4>
-                        <div style={{ fontSize: '22px', fontWeight: 800, color: '#1e293b' }}>{stat.value}</div>
+                        <h4 style={{ margin: '8px 0 2px 0', fontSize: '11.5px', color: '#64748b', fontWeight: 600 }}>{stat.label}</h4>
+                        <div style={{ fontSize: '17px', fontWeight: 800, color: '#1e293b' }}>{stat.value}</div>
                     </div>
                 ))}
             </div>
 
-            {/* Charts Row */}
-            <div className="client-charts-grid" style={{ gap: '25px', marginBottom: '30px' }}>
-                <div className="portal-content-card" style={{ padding: '25px' }}>
-                    <h3 style={{ margin: '0 0 15px 0', fontSize: '1.1rem' }}>Client Growth</h3>
-                    <div style={{ height: '300px' }}>
+            {/* Compact Charts Row */}
+            <div className="client-charts-grid" style={{ gap: '14px', marginBottom: '16px' }}>
+                <div className="portal-content-card" style={{ padding: '14px 18px', borderRadius: '12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                        <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: '#1e293b' }}>Client Growth Trajectory</h3>
+                        <span style={{ fontSize: '11px', color: '#94a3b8' }}>Last 5 months</span>
+                    </div>
+                    <div style={{ height: '185px' }}>
                         <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                             <AreaChart data={[
                                 { month: 'Jan', count: Math.max(0, totalClients - 4) }, 
@@ -634,39 +637,46 @@ const ClientDashboard = ({ clients }) => {
                                 { month: 'Mar', count: Math.max(0, totalClients - 2) },
                                 { month: 'Apr', count: Math.max(0, totalClients - 1) }, 
                                 { month: 'May', count: totalClients }
-                            ]}>
+                            ]} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} />
-                                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} />
-                                <Tooltip />
-                                <Area type="monotone" dataKey="count" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="rgba(99, 102, 241, 0.05)" />
+                                <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94a3b8' }} />
+                                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94a3b8' }} />
+                                <Tooltip contentStyle={{ fontSize: '12px', borderRadius: '8px', padding: '6px 10px' }} />
+                                <Area type="monotone" dataKey="count" stroke="#0f766e" strokeWidth={2.5} fillOpacity={1} fill="rgba(15, 118, 110, 0.08)" />
                             </AreaChart>
                         </ResponsiveContainer>
                     </div>
                 </div>
-                <div className="portal-content-card" style={{ padding: '25px' }}>
-                    <h3 style={{ margin: '0 0 15px 0', fontSize: '1.1rem' }}>By Category</h3>
-                    <div style={{ height: '300px' }}>
+                <div className="portal-content-card" style={{ padding: '14px 18px', borderRadius: '12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                        <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: '#1e293b' }}>Portfolio by Category</h3>
+                        <span style={{ fontSize: '11px', color: '#94a3b8' }}>Breakdown</span>
+                    </div>
+                    <div style={{ height: '185px' }}>
                         <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-                            <PieChart>
-                                <Pie data={finalPieData} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
-                                    {['#6366f1', '#8b5cf6', '#ec4899', '#f59e0b'].map((color, i) => <Cell key={i} fill={color} />)}
+                            <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+                                <Pie data={finalPieData} innerRadius={42} outerRadius={62} paddingAngle={4} dataKey="value">
+                                    {['#0f766e', '#0284c7', '#8b5cf6', '#f59e0b', '#ec4899'].map((color, i) => <Cell key={i} fill={color} />)}
                                 </Pie>
-                                <Tooltip /><Legend verticalAlign="bottom" height={36} />
+                                <Tooltip contentStyle={{ fontSize: '12px', borderRadius: '8px', padding: '6px 10px' }} />
+                                <Legend verticalAlign="bottom" height={28} iconSize={8} wrapperStyle={{ fontSize: '11px' }} />
                             </PieChart>
                         </ResponsiveContainer>
                     </div>
                 </div>
             </div>
 
-            {/* Activity Row */}
-            <div className="portal-content-card" style={{ padding: '25px' }}>
-                <h3 style={{ margin: '0 0 20px 0' }}>Recent Client Activity</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+            {/* Compact Activity Row */}
+            <div className="portal-content-card" style={{ padding: '14px 18px', borderRadius: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                    <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: '#1e293b' }}>Recent Client Activity</h3>
+                    <span style={{ fontSize: '11px', color: '#94a3b8' }}>Live audit feed</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {clients.slice(0, 3).map((client, idx) => (
-                        <ActivityItem key={idx} icon={<UserPlus size={16} />} text={`Client '${client.name}' sync check status active.`} time="Recently updated." />
+                        <ActivityItem key={idx} icon={<UserPlus size={14} />} text={`Client account '${client.name}' synchronized with active ledger status.`} time="Recently updated." />
                     ))}
-                    {clients.length === 0 && <div style={{ color: '#64748b', fontSize: '14px' }}>No client activities logged yet.</div>}
+                    {clients.length === 0 && <div style={{ color: '#64748b', fontSize: '13px', padding: '8px 0' }}>No client activities logged yet.</div>}
                 </div>
             </div>
         </div>
@@ -674,11 +684,11 @@ const ClientDashboard = ({ clients }) => {
 };
 
 const ActivityItem = ({ icon, text, time }) => (
-    <div style={{ display: 'flex', gap: '15px', alignItems: 'center', padding: '10px', borderRadius: '10px' }} className="hover-bg-light">
-        <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#eff6ff', color: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{icon}</div>
-        <div style={{ flex: 1 }}>
-            <div style={{ fontSize: '14px', color: '#1e293b', fontWeight: 500 }}>{text}</div>
-            <div style={{ fontSize: '12px', color: '#94a3b8' }}>{time}</div>
+    <div style={{ display: 'flex', gap: '12px', alignItems: 'center', padding: '8px 12px', borderRadius: '8px', background: '#f8fafc', border: '1px solid #f1f5f9' }} className="hover-bg-light">
+        <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#f0fdfa', color: '#0f766e', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{icon}</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: '13px', color: '#1e293b', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{text}</div>
+            <div style={{ fontSize: '11px', color: '#94a3b8' }}>{time}</div>
         </div>
     </div>
 );

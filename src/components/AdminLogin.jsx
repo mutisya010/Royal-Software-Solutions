@@ -17,8 +17,18 @@ const AdminLogin = () => {
         setError('')
         
         try {
-            await apiClient.auth.login(email, password)
-            navigate('/portal/admin/dashboard')
+            const data = await apiClient.auth.login(email, password)
+            const user = data?.user || apiClient.auth.getCurrentUser();
+            const isStaffOrSuper = user?.is_superuser || user?.is_staff || (
+                Array.isArray(user?.roles) && user.roles.some(r => 
+                    ['admin', 'staff', 'manager', 'director', 'super admin', 'finance', 'sales', 'support'].includes(String(r).toLowerCase().trim())
+                )
+            );
+            if (isStaffOrSuper) {
+                navigate('/portal/admin/dashboard');
+            } else {
+                navigate('/portal/client/dashboard');
+            }
         } catch (err) {
             console.error('Admin Login Error:', err)
             setError(err.message || 'Authentication failed. Please check credentials.')

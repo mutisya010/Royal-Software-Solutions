@@ -51,6 +51,11 @@ const PortalLayout = () => {
 
     // 2. Fetch and refresh logged in user profile from Django backend
     useEffect(() => {
+        if (!apiClient.auth.isAuthenticated()) {
+            navigate('/login');
+            return;
+        }
+
         const applyUserData = (user) => {
             if (!user) return;
             setCurrentUser(user);
@@ -62,6 +67,16 @@ const PortalLayout = () => {
                 ? user.roles[0] 
                 : (user.role || (user.is_superuser ? 'Super Admin' : (user.is_staff ? 'Admin' : 'Staff')));
             setUserRole(primaryRole);
+
+            // Access check: allow superusers, staff, or recognized internal roles
+            const isInternal = user.is_superuser || user.is_staff || (
+                Array.isArray(user.roles) && user.roles.some(r => 
+                    ['admin', 'staff', 'manager', 'director', 'super admin', 'finance', 'sales', 'support'].includes(String(r).toLowerCase().trim())
+                )
+            );
+            if (!isInternal) {
+                navigate('/portal/client/dashboard');
+            }
         };
 
         const cachedUser = apiClient.auth.getCurrentUser();
@@ -76,7 +91,7 @@ const PortalLayout = () => {
             })
             .catch(() => {})
             .finally(() => setProfileReady(true));
-    }, []);
+    }, [navigate]);
 
     // 3. Responsive listener
     useEffect(() => {

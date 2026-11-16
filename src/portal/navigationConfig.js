@@ -86,7 +86,8 @@ export const MODULE_NAV_CONFIG = [
         label: 'Project Management',
         icon: Briefcase,
         path: '/portal/admin/projects',
-        roles: ['Admin'],
+        roles: ['Admin', 'Staff', 'Operations'],
+        permissions: ['projects.view_project', 'pos.view_product', 'utility.view_company'],
         hasSubmenu: true,
         groups: [
             {
@@ -138,7 +139,8 @@ export const MODULE_NAV_CONFIG = [
         label: 'HR & Staff',
         icon: Users,
         path: '/portal/admin/hr',
-        roles: ['Admin'],
+        roles: ['Admin', 'HR'],
+        permissions: ['hr.view_employee', 'utility.view_userprofile', 'auth.view_user'],
         hasSubmenu: true,
         groups: [
             {
@@ -172,7 +174,8 @@ export const MODULE_NAV_CONFIG = [
         label: 'Sales Management',
         icon: TrendingUp,
         path: '/portal/admin/sales',
-        roles: ['Admin', 'Sales'],
+        roles: ['Admin', 'Sales', 'Staff'],
+        permissions: ['pos.view_sale', 'crm.view_customer', 'pos.view_rfq', 'pos.view_product', 'pos.view_quotation'],
         hasSubmenu: true,
         groups: [
             {
@@ -203,7 +206,8 @@ export const MODULE_NAV_CONFIG = [
         label: 'Document Studio',
         icon: Palette,
         path: '/portal/admin/document-studio',
-        roles: ['Admin', 'Finance', 'Sales'],
+        roles: ['Admin', 'Finance', 'Sales', 'Staff'],
+        permissions: ['documents.view_documenttemplate', 'documents.add_documenttemplate', 'documents.change_documenttemplate'],
         hasSubmenu: true,
         groups: [
             {
@@ -228,7 +232,8 @@ export const MODULE_NAV_CONFIG = [
         label: 'Client Management',
         icon: Building,
         path: '/portal/admin/clients',
-        roles: ['Admin', 'Sales'],
+        roles: ['Admin', 'Sales', 'Support', 'Staff'],
+        permissions: ['crm.view_customer', 'crm.add_customer', 'crm.change_customer'],
         hasSubmenu: true,
         groups: [
             {
@@ -254,7 +259,8 @@ export const MODULE_NAV_CONFIG = [
         label: 'Support Tickets',
         icon: Headset,
         path: '/portal/admin/support-tickets',
-        roles: ['Admin', 'Support'],
+        roles: ['Admin', 'Support', 'Staff'],
+        permissions: ['crm.view_ticket', 'support.view_ticket'],
         hasSubmenu: true,
         groups: [
             {
@@ -365,10 +371,18 @@ export const canAccessModule = (module, user) => {
 
     // 5. Check allowed roles
     if (module.roles && module.roles.length > 0) {
-        return module.roles.some(allowedRole => {
+        const hasRole = module.roles.some(allowedRole => {
             const allowed = allowedRole.toLowerCase().trim();
             return userRoles.some(r => r === allowed || r.includes(allowed) || allowed.includes(r));
         });
+        if (hasRole) return true;
+    }
+
+    // 6. If user is staff, grant baseline team workspace modules
+    if (user.is_staff) {
+        if (['dashboard', 'planner', 'profile'].includes(module.id)) {
+            return true;
+        }
     }
 
     return false;
@@ -391,5 +405,10 @@ export const isAdminUser = (user) => {
     if (user.is_superuser) return true;
     const roles = Array.isArray(user.roles) ? user.roles : (user.role ? [user.role] : []);
     return roles.some(r => ['super admin', 'administrator', 'admin'].includes(String(r).toLowerCase().trim()));
+};
+
+export const isStaffUser = (user) => {
+    if (!user) return false;
+    return !!(user.is_superuser || user.is_staff || isAdminUser(user));
 };
 

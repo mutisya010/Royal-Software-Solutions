@@ -179,11 +179,25 @@ const ClientProfileModal = ({
     const totalPaid = payments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
 
     return (
-        <div className="doc-modal-overlay" onClick={onClose}>
+        <div 
+            className="doc-modal-overlay" 
+            onClick={onClose}
+            style={{ 
+                position: 'fixed', 
+                inset: 0, 
+                zIndex: 99999, 
+                background: 'rgba(15, 23, 42, 0.65)', 
+                backdropFilter: 'blur(4px)', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                padding: '1.5rem' 
+            }}
+        >
             <div 
                 className="doc-modal-content" 
                 onClick={e => e.stopPropagation()} 
-                style={{ maxWidth: '980px', width: '100%', maxHeight: '92vh', overflowY: 'auto' }}
+                style={{ maxWidth: '980px', width: '100%', maxHeight: '92vh', overflowY: 'auto', position: 'relative', zIndex: 100000 }}
             >
                 {/* Hero Header */}
                 <div style={{

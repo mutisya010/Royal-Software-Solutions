@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard,
     MessageSquare,
@@ -27,6 +27,7 @@ const ClientPortalLayout = () => {
     const [showNotifications, setShowNotifications] = useState(false);
     const [clientName, setClientName] = useState('Valued Client');
     const [clientEmail, setClientEmail] = useState('');
+    const navigate = useNavigate();
 
     const { company } = useCompany();
     const location = useLocation();
@@ -37,15 +38,20 @@ const ClientPortalLayout = () => {
         setShowNotifications(false);
     }, [location.pathname]);
 
-    // Fetch user details
+    // Fetch user details & verify auth
     useEffect(() => {
+        if (!apiClient.auth.isAuthenticated()) {
+            navigate('/login');
+            return;
+        }
+
         const user = apiClient.auth.getCurrentUser();
         if (user) {
             const name = user.full_name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username;
             setClientName(name || 'Valued Client');
             setClientEmail(user.email || '');
         }
-    }, []);
+    }, [navigate]);
 
     // Handle responsive sidebar behavior
     useEffect(() => {

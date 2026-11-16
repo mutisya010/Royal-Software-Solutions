@@ -82,11 +82,32 @@ const EmailGatewayConfigModal = ({ isOpen, onClose, showToast }) => {
     if (!isOpen) return null;
 
     return (
-        <div className="doc-modal-overlay" onClick={onClose}>
+        <div 
+            className="doc-modal-overlay" 
+            onClick={onClose}
+            style={{ 
+                position: 'fixed', 
+                inset: 0, 
+                zIndex: 99999, 
+                background: 'rgba(15, 23, 42, 0.65)', 
+                backdropFilter: 'blur(4px)', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                padding: '1.5rem' 
+            }}
+        >
             <div 
                 className="doc-modal-content" 
                 onClick={e => e.stopPropagation()} 
-                style={{ maxWidth: '640px', width: '100%', maxHeight: '90vh', overflowY: 'auto' }}
+                style={{ 
+                    maxWidth: '640px', 
+                    width: '100%', 
+                    maxHeight: '90vh', 
+                    overflowY: 'auto',
+                    position: 'relative',
+                    zIndex: 100000 
+                }}
             >
                 {/* Header */}
                 <div className="doc-modal-header" style={{ padding: '20px 25px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #e2e8f0' }}>
