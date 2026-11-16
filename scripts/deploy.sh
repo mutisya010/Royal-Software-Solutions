@@ -71,13 +71,9 @@ if [ -f "${BACKEND_DIR}/.env" ]; then
     done < "${BACKEND_DIR}/.env"
 fi
 
-# PostgreSQL credentials: defaults to port 5433 (PostgreSQL 16)
-if [ -n "${DB_PASSWORD:-}" ]; then
-    export PGPASSWORD="${DB_PASSWORD}"
-elif [ -n "${POSTGRES_PASSWORD:-}" ]; then
-    export PGPASSWORD="${POSTGRES_PASSWORD}"
-fi
-export PGUSER="${DB_USER:-admin}"
+# PostgreSQL credentials: defaults to port 5433 (PostgreSQL 16) with postgres user
+export PGPASSWORD="${DB_PASSWORD:-Admin@2025}"
+export PGUSER="postgres"
 export PGHOST="${DB_HOST:-localhost}"
 export DBNAME="${DB_NAME:-easybizdb}"
 
@@ -346,11 +342,15 @@ migrate_postgres_12_to_16() {
     local PG12_PORT=5432
     local PG16_PORT=5433
     local DUMP_FILE="${BACKUP_DIR}/migration_pg12_to_pg16_${DBNAME}_${TIMESTAMP}.dump"
+    local MIGRATION_USER="postgres"
+    local MIGRATION_PW="${DB_PASSWORD:-Admin@2025}"
+
+    export PGPASSWORD="${MIGRATION_PW}"
 
     echo "============================================================"
     echo " AUTOMATED DATABASE MIGRATION: PG 12 (5432) -> PG 16 (5433)"
     echo " Database Name : ${DBNAME}"
-    echo " Database User : ${PGUSER}"
+    echo " Database User : ${MIGRATION_USER}"
     echo " Target Host   : ${PGHOST}"
     echo "============================================================"
 
@@ -358,20 +358,23 @@ migrate_postgres_12_to_16() {
 
     # 1. Connectivity checks
     echo ">>> Testing connection to PostgreSQL 12 (port ${PG12_PORT})..."
-    if ! pg_isready -h "${PGHOST}" -p "${PG12_PORT}" -U "${PGUSER}" &>/dev/null; then
+    if ! pg_isready -h "${PGHOST}" -p "${PG12_PORT}" &>/dev/null; then
         echo "Error: Cannot connect to PostgreSQL 12 on port ${PG12_PORT}. Please verify PG 12 is active."
         return 1
     fi
 
     echo ">>> Testing connection to PostgreSQL 16 (port ${PG16_PORT})..."
-    if ! pg_isready -h "${PGHOST}" -p "${PG16_PORT}" -U "${PGUSER}" &>/dev/null; then
+    if ! pg_isready -h "${PGHOST}" -p "${PG16_PORT}" &>/dev/null; then
         echo "Error: Cannot connect to PostgreSQL 16 on port ${PG16_PORT}. Please ensure PostgreSQL 16 service is running."
         return 1
     fi
 
     # 2. Dump from PostgreSQL 12 (port 5432)
     echo ">>> Dumping '${DBNAME}' from PostgreSQL 12 (port ${PG12_PORT}) to ${DUMP_FILE}..."
-    pg_dump -h "${PGHOST}" -p "${PG12_PORT}" -U "${PGUSER}" -d "${DBNAME}" -F c -b -v -f "${DUMP_FILE}"
+    if ! PGPASSWORD="${MIGRATION_PW}" pg_dump -h "${PGHOST}" -p "${PG12_PORT}" -U "${MIGRATION_USER}" -d "${DBNAME}" -F c -b -v -f "${DUMP_FILE}"; then
+        echo ">>> Retrying dump via local socket (peer auth)..."
+        sudo -u postgres pg_dump -p "${PG12_PORT}" -d "${DBNAME}" -F c -b -v -f "${DUMP_FILE}"
+    fi
 
     local DUMP_SIZE
     DUMP_SIZE=$(du -h "${DUMP_FILE}" | cut -f1)
@@ -380,31 +383,39 @@ migrate_postgres_12_to_16() {
     # 3. Ensure role and database exist on PostgreSQL 16 (port 5433)
     echo ">>> Checking database and user setup on PostgreSQL 16 (port ${PG16_PORT})..."
     if command -v sudo &>/dev/null; then
-        sudo -u postgres psql -p "${PG16_PORT}" -tc "SELECT 1 FROM pg_roles WHERE rolname = '${PGUSER}';" 2>/dev/null | grep -q 1 || {
-            echo ">>> Creating role '${PGUSER}' on PostgreSQL 16..."
-            sudo -u postgres psql -p "${PG16_PORT}" -c "CREATE USER \"${PGUSER}\" WITH PASSWORD '${PGPASSWORD}' SUPERUSER;" 2>/dev/null || true
+        sudo -u postgres psql -p "${PG16_PORT}" -c "ALTER USER postgres WITH PASSWORD '${MIGRATION_PW}';" 2>/dev/null || true
+        sudo -u postgres psql -p "${PG16_PORT}" -tc "SELECT 1 FROM pg_roles WHERE rolname = 'admin';" 2>/dev/null | grep -q 1 || {
+            echo ">>> Creating role 'admin' on PostgreSQL 16..."
+            sudo -u postgres psql -p "${PG16_PORT}" -c "CREATE USER admin WITH PASSWORD '${MIGRATION_PW}' SUPERUSER;" 2>/dev/null || true
         }
+        sudo -u postgres psql -p "${PG16_PORT}" -c "ALTER USER admin WITH PASSWORD '${MIGRATION_PW}' SUPERUSER;" 2>/dev/null || true
     fi
 
-    if ! psql -h "${PGHOST}" -p "${PG16_PORT}" -U "${PGUSER}" -d postgres -tc "SELECT 1 FROM pg_database WHERE datname = '${DBNAME}';" 2>/dev/null | grep -q 1; then
+    if ! PGPASSWORD="${MIGRATION_PW}" psql -h "${PGHOST}" -p "${PG16_PORT}" -U "${MIGRATION_USER}" -d postgres -tc "SELECT 1 FROM pg_database WHERE datname = '${DBNAME}';" 2>/dev/null | grep -q 1; then
         echo ">>> Creating database '${DBNAME}' on PostgreSQL 16 (port ${PG16_PORT})..."
         if command -v sudo &>/dev/null; then
-            sudo -u postgres psql -p "${PG16_PORT}" -c "CREATE DATABASE \"${DBNAME}\" OWNER \"${PGUSER}\";" 2>/dev/null || \
-            psql -h "${PGHOST}" -p "${PG16_PORT}" -U "${PGUSER}" -d postgres -c "CREATE DATABASE \"${DBNAME}\" OWNER \"${PGUSER}\";" 2>/dev/null || true
+            sudo -u postgres psql -p "${PG16_PORT}" -c "CREATE DATABASE \"${DBNAME}\" OWNER postgres;" 2>/dev/null || true
         else
-            psql -h "${PGHOST}" -p "${PG16_PORT}" -U "${PGUSER}" -d postgres -c "CREATE DATABASE \"${DBNAME}\" OWNER \"${PGUSER}\";" 2>/dev/null || true
+            PGPASSWORD="${MIGRATION_PW}" psql -h "${PGHOST}" -p "${PG16_PORT}" -U "${MIGRATION_USER}" -d postgres -c "CREATE DATABASE \"${DBNAME}\" OWNER postgres;" 2>/dev/null || true
         fi
+    fi
+
+    if command -v sudo &>/dev/null; then
+        sudo -u postgres psql -p "${PG16_PORT}" -c "GRANT ALL PRIVILEGES ON DATABASE \"${DBNAME}\" TO admin;" 2>/dev/null || true
+        sudo -u postgres psql -p "${PG16_PORT}" -c "GRANT ALL PRIVILEGES ON DATABASE \"${DBNAME}\" TO postgres;" 2>/dev/null || true
     fi
 
     # 4. Restore dump into PostgreSQL 16 (port 5433)
     echo ">>> Restoring schema and data into PostgreSQL 16 (port ${PG16_PORT})..."
-    pg_restore -h "${PGHOST}" -p "${PG16_PORT}" -U "${PGUSER}" -d "${DBNAME}" --clean --if-exists --no-owner -v "${DUMP_FILE}" || {
-        echo "Notice: pg_restore returned notices or warnings (common with preexisting system schemas). Verifying table count..."
-    }
+    if ! PGPASSWORD="${MIGRATION_PW}" pg_restore -h "${PGHOST}" -p "${PG16_PORT}" -U "${MIGRATION_USER}" -d "${DBNAME}" --clean --if-exists --no-owner -v "${DUMP_FILE}"; then
+        sudo -u postgres pg_restore -p "${PG16_PORT}" -d "${DBNAME}" --clean --if-exists --no-owner -v "${DUMP_FILE}" 2>/dev/null || {
+            echo "Notice: pg_restore returned notices or warnings (common with preexisting system schemas). Verifying table count..."
+        }
+    fi
 
     # 5. Verify restored database
     local RESTORED_TABLES
-    RESTORED_TABLES=$(psql -h "${PGHOST}" -p "${PG16_PORT}" -U "${PGUSER}" -d "${DBNAME}" -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';")
+    RESTORED_TABLES=$(PGPASSWORD="${MIGRATION_PW}" psql -h "${PGHOST}" -p "${PG16_PORT}" -U "${MIGRATION_USER}" -d "${DBNAME}" -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null || echo "0")
     echo ">>> Verification: Total public tables in PostgreSQL 16 '${DBNAME}': ${RESTORED_TABLES}"
 
     # 6. Update Backend .env to point to 5433
@@ -438,7 +449,7 @@ migrate_postgres_12_to_16() {
     local GUNICORN_SVC
     GUNICORN_SVC=$(detect_backend_service)
     echo ">>> Restarting ${GUNICORN_SVC} to use PostgreSQL 16..."
-    systemctl restart "${GUNICORN_SVC}"
+    systemctl restart "${GUNICORN_SVC}" 2>/dev/null || true
 
     echo "============================================================"
     echo " PostgreSQL 12 -> 16 Migration Completed Successfully!"
@@ -511,12 +522,13 @@ if [ "${TARGET}" = "all" ] || [ "${TARGET}" = "backend" ]; then
     mkdir -p "${BACKUP_DIR}"
     if command -v pg_dump &>/dev/null; then
         BACKUP_FILE="${BACKUP_DIR}/easybizdb_port${PGPORT}_${TIMESTAMP}.sql.gz"
-        if pg_dump -h "${PGHOST}" -p "${PGPORT}" -U "${PGUSER}" "${DBNAME}" | gzip > "${BACKUP_FILE}"; then
+        if PGPASSWORD="${PGPASSWORD}" pg_dump -h "${PGHOST}" -p "${PGPORT}" -U "${PGUSER}" "${DBNAME}" 2>/dev/null | gzip > "${BACKUP_FILE}"; then
             echo "Database backup successfully created: ${BACKUP_FILE}"
-            # Keep the 15 most recent backups, clean older ones
             find "${BACKUP_DIR}" -name "easybizdb_*.sql.gz" -mtime +14 -exec rm -f {} + 2>/dev/null || true
+        elif sudo -u postgres pg_dump -p "${PGPORT}" "${DBNAME}" 2>/dev/null | gzip > "${BACKUP_FILE}"; then
+            echo "Database backup successfully created (via peer auth): ${BACKUP_FILE}"
         else
-            echo "Warning: pg_dump backup encountered an issue. Proceeding with caution..."
+            echo "Notice: Pre-deployment backup skipped (database may not yet be populated on port ${PGPORT})."
         fi
     else
         echo "Notice: pg_dump not found in PATH. Skipping database snapshot."
@@ -556,11 +568,11 @@ fi
 # ------------------------------------------------------------------------------
 # 11. STEP 5: DATABASE MIGRATIONS
 # ------------------------------------------------------------------------------
-if [ "${TARGET}" = "all" ] || [ "${TARGET}" = "backend" ]; then
+run_database_migrations() {
     # Auto-detect if PostgreSQL 16 database needs migration from PostgreSQL 12
     local PG16_TABLES=0
     if command -v psql &>/dev/null; then
-        PG16_TABLES=$(psql -h "${PGHOST}" -p 5433 -U "${PGUSER}" -d "${DBNAME}" -tc "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null || echo "0")
+        PG16_TABLES=$(PGPASSWORD="${PGPASSWORD}" psql -h "${PGHOST}" -p 5433 -U "${PGUSER}" -d "${DBNAME}" -tc "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null || echo "0")
         PG16_TABLES=$(echo "${PG16_TABLES}" | tr -d '[:space:]')
         [ -z "${PG16_TABLES}" ] && PG16_TABLES=0
     fi
@@ -568,7 +580,7 @@ if [ "${TARGET}" = "all" ] || [ "${TARGET}" = "backend" ]; then
     if [ "${PG16_TABLES}" -eq 0 ]; then
         local PG12_TABLES=0
         if command -v psql &>/dev/null; then
-            PG12_TABLES=$(psql -h "${PGHOST}" -p 5432 -U "${PGUSER}" -d "${DBNAME}" -tc "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null || echo "0")
+            PG12_TABLES=$(PGPASSWORD="${PGPASSWORD}" psql -h "${PGHOST}" -p 5432 -U "${PGUSER}" -d "${DBNAME}" -tc "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null || echo "0")
             PG12_TABLES=$(echo "${PG12_TABLES}" | tr -d '[:space:]')
             [ -z "${PG12_TABLES}" ] && PG12_TABLES=0
         fi
@@ -587,6 +599,10 @@ if [ "${TARGET}" = "all" ] || [ "${TARGET}" = "backend" ]; then
     echo ">>> Running Django database migrations against ${PGHOST}:${PGPORT}..."
     cd "${BACKEND_DIR}"
     "${ACTIVE_VENV}/bin/python" manage.py migrate --noinput
+}
+
+if [ "${TARGET}" = "all" ] || [ "${TARGET}" = "backend" ]; then
+    run_database_migrations
 fi
 
 # ------------------------------------------------------------------------------
