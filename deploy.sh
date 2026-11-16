@@ -518,20 +518,24 @@ fi
 # 9. STEP 3: PRE-DEPLOYMENT DATABASE BACKUP (Active PGPORT)
 # ------------------------------------------------------------------------------
 if [ "${TARGET}" = "all" ] || [ "${TARGET}" = "backend" ]; then
-    echo ">>> Taking pre-deployment database backup from port ${PGPORT}..."
-    mkdir -p "${BACKUP_DIR}"
-    if command -v pg_dump &>/dev/null; then
-        BACKUP_FILE="${BACKUP_DIR}/easybizdb_port${PGPORT}_${TIMESTAMP}.sql.gz"
-        if PGPASSWORD="${PGPASSWORD}" pg_dump -h "${PGHOST}" -p "${PGPORT}" -U "${PGUSER}" "${DBNAME}" 2>/dev/null | gzip > "${BACKUP_FILE}"; then
-            echo "Database backup successfully created: ${BACKUP_FILE}"
-            find "${BACKUP_DIR}" -name "easybizdb_*.sql.gz" -mtime +14 -exec rm -f {} + 2>/dev/null || true
-        elif sudo -u postgres pg_dump -p "${PGPORT}" "${DBNAME}" 2>/dev/null | gzip > "${BACKUP_FILE}"; then
-            echo "Database backup successfully created (via peer auth): ${BACKUP_FILE}"
-        else
-            echo "Notice: Pre-deployment backup skipped (database may not yet be populated on port ${PGPORT})."
-        fi
+    if [ "${SKIP_BACKUP:-0}" = "1" ] || [ "${SKIP_DB_DUMP:-0}" = "1" ]; then
+        echo ">>> Skipping pre-deployment database backup as requested (SKIP_BACKUP=1)..."
     else
-        echo "Notice: pg_dump not found in PATH. Skipping database snapshot."
+        echo ">>> Taking pre-deployment database backup from port ${PGPORT}..."
+        mkdir -p "${BACKUP_DIR}"
+        if command -v pg_dump &>/dev/null; then
+            BACKUP_FILE="${BACKUP_DIR}/easybizdb_port${PGPORT}_${TIMESTAMP}.sql.gz"
+            if PGPASSWORD="${PGPASSWORD}" pg_dump -h "${PGHOST}" -p "${PGPORT}" -U "${PGUSER}" "${DBNAME}" 2>/dev/null | gzip > "${BACKUP_FILE}"; then
+                echo "Database backup successfully created: ${BACKUP_FILE}"
+                find "${BACKUP_DIR}" -name "easybizdb_*.sql.gz" -mtime +14 -exec rm -f {} + 2>/dev/null || true
+            elif sudo -u postgres pg_dump -p "${PGPORT}" "${DBNAME}" 2>/dev/null | gzip > "${BACKUP_FILE}"; then
+                echo "Database backup successfully created (via peer auth): ${BACKUP_FILE}"
+            else
+                echo "Notice: Pre-deployment backup skipped (database may not yet be populated on port ${PGPORT})."
+            fi
+        else
+            echo "Notice: pg_dump not found in PATH. Skipping database snapshot."
+        fi
     fi
 fi
 
@@ -569,26 +573,31 @@ fi
 # 11. STEP 5: DATABASE MIGRATIONS
 # ------------------------------------------------------------------------------
 run_database_migrations() {
-    # Auto-detect if PostgreSQL 16 database needs migration from PostgreSQL 12
-    local PG16_TABLES=0
-    if command -v psql &>/dev/null; then
-        PG16_TABLES=$(PGPASSWORD="${PGPASSWORD}" psql -h "${PGHOST}" -p 5433 -U "${PGUSER}" -d "${DBNAME}" -tc "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null || echo "0")
-        PG16_TABLES=$(echo "${PG16_TABLES}" | tr -d '[:space:]')
-        [ -z "${PG16_TABLES}" ] && PG16_TABLES=0
-    fi
-
-    if [ "${PG16_TABLES}" -eq 0 ]; then
-        local PG12_TABLES=0
+    # If explicitly flagged or already on PG16, skip any PG 12 check
+    if [ "${SKIP_DB_MIGRATION:-0}" = "1" ] || [ "${SKIP_PG12_CHECK:-0}" = "1" ]; then
+        echo ">>> Skipping PG 12 check (PostgreSQL 16 already migrated and active)..."
+    else
+        # Auto-detect if PostgreSQL 16 database needs migration from PostgreSQL 12
+        local PG16_TABLES=0
         if command -v psql &>/dev/null; then
-            PG12_TABLES=$(PGPASSWORD="${PGPASSWORD}" psql -h "${PGHOST}" -p 5432 -U "${PGUSER}" -d "${DBNAME}" -tc "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null || echo "0")
-            PG12_TABLES=$(echo "${PG12_TABLES}" | tr -d '[:space:]')
-            [ -z "${PG12_TABLES}" ] && PG12_TABLES=0
+            PG16_TABLES=$(PGPASSWORD="${PGPASSWORD}" psql -h "${PGHOST}" -p 5433 -U "${PGUSER}" -d "${DBNAME}" -tc "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null || echo "0")
+            PG16_TABLES=$(echo "${PG16_TABLES}" | tr -d '[:space:]')
+            [ -z "${PG16_TABLES}" ] && PG16_TABLES=0
         fi
 
-        if [ "${PG12_TABLES}" -gt 0 ]; then
-            echo ">>> Detected ${PG12_TABLES} existing tables on PostgreSQL 12 (port 5432) and unpopulated PostgreSQL 16 (port 5433)."
-            echo ">>> Automatically executing database migration from PG 12 -> PG 16 to preserve all existing data..."
-            migrate_postgres_12_to_16
+        if [ "${PG16_TABLES}" -eq 0 ]; then
+            local PG12_TABLES=0
+            if command -v psql &>/dev/null; then
+                PG12_TABLES=$(PGPASSWORD="${PGPASSWORD}" psql -h "${PGHOST}" -p 5432 -U "${PGUSER}" -d "${DBNAME}" -tc "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null || echo "0")
+                PG12_TABLES=$(echo "${PG12_TABLES}" | tr -d '[:space:]')
+                [ -z "${PG12_TABLES}" ] && PG12_TABLES=0
+            fi
+
+            if [ "${PG12_TABLES}" -gt 0 ]; then
+                echo ">>> Detected ${PG12_TABLES} existing tables on PostgreSQL 12 (port 5432) and unpopulated PostgreSQL 16 (port 5433)."
+                echo ">>> Automatically executing database migration from PG 12 -> PG 16 to preserve all existing data..."
+                migrate_postgres_12_to_16
+            fi
         fi
     fi
 
