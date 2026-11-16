@@ -1,78 +1,68 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { apiClient } from '../services/apiClient';
+import { MODULE_NAV_CONFIG, canAccessModule, isAdminUser } from './navigationConfig';
 import {
     User, Mail, Phone, MapPin, Briefcase, Building,
     Shield, Key, Bell, Globe, Moon, Sun,
     Monitor, Lock, LogOut, History, FileText,
     Plus, Download, Trash2, Edit3, Camera,
     CheckCircle, AlertCircle, Eye, EyeOff,
-    Layout, Settings, Activity, Terminal
+    Layout, Settings, Activity, Terminal, ShieldCheck, CheckSquare, XCircle
 } from 'lucide-react';
 
-// --- Dummy Data ---
-const userData = {
-    fullName: "Jane Doe",
-    username: "janedoe",
-    email: "jane.doe@royalsoftwares.co.ke",
-    phone: "+254 700 000 000",
-    jobTitle: "Senior Solutions Architect",
-    department: "Engineering",
-    role: "Admin",
-    status: "Active",
-    dateJoined: "January 15, 2024",
-    bio: "Passionate about building scalable cloud solutions and improving developer workflows. 10+ years of experience in full-stack development.",
-    address: "Westlands, Nairobi, Kenya",
-    skills: ["React", "Node.js", "AWS", "Security Compliance"],
-    certifications: ["AWS Certified Solutions Architect", "CISSP"]
-};
-
-const loginActivity = [
-    { date: "2026-03-09 14:20", device: "MacBook Pro", browser: "Chrome", ip: "197.232.14.88", location: "Nairobi, KE" },
-    { date: "2026-03-08 09:15", device: "iPhone 15", browser: "Mobile Safari", ip: "197.232.14.88", location: "Nairobi, KE" },
-    { date: "2026-03-05 18:45", device: "Windows Desktop", browser: "Edge", ip: "197.248.55.12", location: "Mombasa, KE" }
-];
-
-const activityLog = [
-    { action: "Profile Updated", date: "2026-03-09 10:30" },
-    { action: "Password Changed", date: "2026-03-01 16:20" },
-    { action: "2FA Enabled", date: "2026-02-15 09:00" }
-];
-
-const personalFiles = [
-    { id: 1, name: "Employment_Contract.pdf", size: "1.2 MB", date: "2024-01-15" },
-    { id: 2, name: "AWS_Certification.pdf", size: "2.5 MB", date: "2024-06-20" },
-    { id: 3, name: "Profile_Backup_Settings.json", size: "45 KB", date: "2026-02-28" }
-];
-
-
-
 const UserProfile = () => {
-    const [view, setView] = useState('overview'); // overview, editing, security, preferences, activity, files, api
-    const [darkMode, setDarkMode] = useState(false);
-    const [showPassword, setShowPassword] = useState(false);
-
+    const [view, setView] = useState('overview'); // overview, editing, security, preferences, capabilities
     const [profile, setProfile] = useState(null);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [toast, setToast] = useState(null);
+
+    const notify = (msg, type = 'success') => {
+        setToast({ msg, type });
+        setTimeout(() => setToast(null), 3500);
+    };
 
     const loadProfile = async () => {
         setLoading(true);
         try {
-            const data = await apiClient.profile.get();
+            // Fetch live user info from JWT session & backend endpoint
+            const sessionUser = apiClient.auth.getCurrentUser();
+            let liveUser = null;
+            try {
+                liveUser = await apiClient.auth.getProfile();
+            } catch (e) {
+                console.info('Using cached session profile.');
+            }
+
+            const data = liveUser || sessionUser || {};
+            const roles = Array.isArray(data.roles) ? data.roles : (data.role ? [data.role] : []);
+            const primaryRole = data.is_superuser
+                ? 'Super Administrator'
+                : (roles[0] || (data.is_staff ? 'Administrator' : 'Staff Member'));
+
             setProfile({
-                ...userData,
-                ...data,
-                fullName: data.first_name || data.last_name ? `${data.first_name || ''} ${data.last_name || ''}`.trim() : userData.fullName,
-                email: data.email || userData.email,
-                phone: data.phone || data.cell_phone || userData.phone,
-                bio: data.bio || data.about || userData.bio,
-                role: data.is_superuser ? 'Super Admin' : data.is_staff ? 'Admin' : 'Staff'
+                id: data.id,
+                username: data.username || 'user',
+                fullName: data.full_name || `${data.first_name || ''} ${data.last_name || ''}`.trim() || data.username || 'User',
+                email: data.email || 'Not provided',
+                phone: data.phone || data.cell_phone || '+254 700 000 000',
+                jobTitle: primaryRole,
+                department: data.department || 'Enterprise Operations',
+                company: data.company || 'Royal Software Solutions',
+                role: primaryRole,
+                roles: roles,
+                permissions: data.permissions || [],
+                is_superuser: !!data.is_superuser,
+                is_staff: !!data.is_staff,
+                status: data.is_active !== false ? 'Active' : 'Inactive',
+                dateJoined: data.date_joined ? new Date(data.date_joined).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Active Session',
+                bio: data.bio || data.about || 'Enterprise system user contributing across projects, operations, and business execution.',
+                address: data.address || 'Nairobi, Kenya',
             });
             setError(null);
         } catch (err) {
             console.error("Failed to load profile:", err);
             setError("Failed to sync profile with ERP backend.");
-            setProfile(userData);
         } finally {
             setLoading(false);
         }
@@ -85,9 +75,10 @@ const UserProfile = () => {
     const handleProfileUpdate = async (formData) => {
         setLoading(true);
         try {
+            const names = (formData.fullName || '').trim().split(' ');
             const payload = {
-                first_name: formData.fullName.split(' ')[0] || '',
-                last_name: formData.fullName.split(' ').slice(1).join(' ') || '',
+                first_name: names[0] || '',
+                last_name: names.slice(1).join(' ') || '',
                 cell_phone: formData.phone,
                 about: formData.bio
             };
@@ -95,12 +86,12 @@ const UserProfile = () => {
             setProfile(prev => ({
                 ...prev,
                 ...updated,
-                fullName: updated.first_name || updated.last_name ? `${updated.first_name || ''} ${updated.last_name || ''}`.trim() : prev.fullName,
-                phone: updated.phone || updated.cell_phone || prev.phone,
-                bio: updated.bio || updated.about || prev.bio
+                fullName: updated.first_name || updated.last_name ? `${updated.first_name || ''} ${updated.last_name || ''}`.trim() : formData.fullName,
+                phone: updated.phone || updated.cell_phone || formData.phone,
+                bio: updated.bio || updated.about || formData.bio
             }));
             setView('overview');
-            setError(null);
+            notify('Profile information updated successfully.');
         } catch (err) {
             console.error("Failed to update profile:", err);
             setError(err.message || "Failed to update profile settings.");
@@ -112,10 +103,21 @@ const UserProfile = () => {
     return (
         <div className="profile-main-container portal-module animations-fade-in">
             <style>{`
-                .profile-grid { display: grid; grid-template-columns: 300px 1fr; gap: 30px; }
-                .profile-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; }
-                .profile-skills-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; }
+                .profile-grid { display: grid; grid-template-columns: 280px 1fr; gap: 24px; }
+                .profile-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
                 .profile-bottom-nav { display: none; }
+
+                .profile-role-pill {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 5px;
+                    font-size: 11px;
+                    font-weight: 700;
+                    padding: 4px 12px;
+                    border-radius: 20px;
+                    background: #ecfdf5;
+                    color: #10b981;
+                }
 
                 @media (max-width: 1024px) {
                     .profile-grid { grid-template-columns: 1fr; }
@@ -126,82 +128,133 @@ const UserProfile = () => {
                         bottom: 0; 
                         left: 0; 
                         right: 0; 
-                        background: rgba(255, 255, 255, 0.8); 
+                        background: rgba(255, 255, 255, 0.95); 
                         backdrop-filter: blur(10px); 
                         border-top: 1px solid #e2e8f0; 
-                        padding: 10px; 
+                        padding: 8px 12px; 
                         justify-content: space-around; 
                         z-index: 1000;
-                        box-shadow: 0 -4px 12px rgba(0,0,0,0.05);
                     }
-                    .profile-main-container { padding-bottom: 80px; }
+                    .profile-main-container { padding-bottom: 70px; }
                 }
 
                 @media (max-width: 768px) {
                     .profile-info-grid { grid-template-columns: 1fr; }
-                    .profile-skills-grid { grid-template-columns: 1fr; }
                     .edit-form-grid { grid-template-columns: 1fr !important; }
-                    .security-form { max-width: 100% !important; }
                 }
             `}</style>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+
+            {toast && (
+                <div style={{
+                    position: 'fixed',
+                    top: '24px',
+                    right: '24px',
+                    zIndex: 99999,
+                    background: toast.type === 'error' ? '#ef4444' : '#10b981',
+                    color: '#ffffff',
+                    padding: '12px 20px',
+                    borderRadius: '8px',
+                    boxShadow: '0 8px 16px rgba(0,0,0,0.15)',
+                    fontSize: '13px',
+                    fontWeight: 600
+                }}>
+                    {toast.msg}
+                </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                 <div>
-                    <h2 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 800, color: '#1e293b' }}>My Profile</h2>
-                    <p style={{ margin: '5px 0 0 0', color: '#64748b', fontSize: '14px' }}>Manage your personal details, security, and account preferences.</p>
+                    <h2 style={{ margin: 0, fontSize: '1.65rem', fontWeight: 800, color: '#1e293b' }}>User Account & Profile</h2>
+                    <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '13px' }}>
+                        View your account identity, security credentials, and authorized module permissions.
+                    </p>
                 </div>
             </div>
 
             <div className="profile-grid">
-                {/* Sidebar Navigation */}
-                <div className="profile-sidebar" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <div className="portal-content-card" style={{ padding: '25px', marginBottom: '10px', textAlign: 'center' }}>
-                        <div style={{ position: 'relative', width: '100px', height: '100px', margin: '0 auto 15px auto' }}>
-                            <div style={{ width: '100%', height: '100%', borderRadius: '50%', background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
-                                <User size={48} />
+                {/* Left Sidebar */}
+                <div className="profile-sidebar" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div className="portal-content-card" style={{ padding: '24px', textAlign: 'center' }}>
+                        <div style={{ position: 'relative', width: '90px', height: '90px', margin: '0 auto 14px auto' }}>
+                            <div style={{
+                                width: '100%',
+                                height: '100%',
+                                borderRadius: '50%',
+                                background: 'linear-gradient(135deg, var(--primary-color, #16657a) 0%, #0d3c49 100%)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: 'white',
+                                fontSize: '28px',
+                                fontWeight: 700
+                            }}>
+                                {profile?.fullName ? profile.fullName.charAt(0).toUpperCase() : <User size={40} />}
                             </div>
-                            <button style={{ position: 'absolute', bottom: '0', right: '0', background: 'white', border: '1px solid #e2e8f0', borderRadius: '50%', padding: '8px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
-                                <Camera size={14} color="#6366f1" />
-                            </button>
                         </div>
-                        <h3 style={{ margin: '0 0 5px 0' }}>{profile?.fullName || userData.fullName}</h3>
-                        <p style={{ margin: 0, fontSize: '14px', color: '#64748b' }}>{profile?.jobTitle || userData.jobTitle}</p>
-                        <span style={{ display: 'inline-block', marginTop: '10px', fontSize: '11px', fontWeight: 700, padding: '4px 12px', borderRadius: '20px', background: '#ecfdf5', color: '#10b981' }}>{profile?.role || userData.role}</span>
+
+                        <h3 style={{ margin: '0 0 4px 0', fontSize: '16px', fontWeight: 700, color: '#1e293b' }}>
+                            {profile?.fullName}
+                        </h3>
+                        <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>
+                            @{profile?.username}
+                        </p>
+                        
+                        <div style={{ marginTop: '12px' }}>
+                            <span className="profile-role-pill">
+                                <ShieldCheck size={13} />
+                                {profile?.role}
+                            </span>
+                        </div>
                     </div>
 
-                    <div className="portal-content-card" style={{ padding: '10px' }}>
-                        <ProfileNavBtn icon={<User size={18} />} label="Overview" active={view === 'overview' || view === 'editing'} onClick={() => setView('overview')} />
-                        <ProfileNavBtn icon={<Shield size={18} />} label="Security" active={view === 'security'} onClick={() => setView('security')} />
-                        <ProfileNavBtn icon={<Settings size={18} />} label="Preferences" active={view === 'preferences'} onClick={() => setView('preferences')} />
-                        <ProfileNavBtn icon={<History size={18} />} label="Logs & Activity" active={view === 'activity'} onClick={() => setView('activity')} />
-                        <ProfileNavBtn icon={<FileText size={18} />} label="Personal Files" active={view === 'files'} onClick={() => setView('files')} />
-                        <ProfileNavBtn icon={<Terminal size={18} />} label="API Access" active={view === 'api'} onClick={() => setView('api')} />
+                    <div className="portal-content-card" style={{ padding: '8px' }}>
+                        <ProfileNavBtn
+                            icon={<User size={17} />}
+                            label="Account Overview"
+                            active={view === 'overview' || view === 'editing'}
+                            onClick={() => setView('overview')}
+                        />
+                        <ProfileNavBtn
+                            icon={<ShieldCheck size={17} />}
+                            label="Module Permissions"
+                            active={view === 'capabilities'}
+                            onClick={() => setView('capabilities')}
+                        />
+                        <ProfileNavBtn
+                            icon={<Lock size={17} />}
+                            label="Password & Security"
+                            active={view === 'security'}
+                            onClick={() => setView('security')}
+                        />
+                        <ProfileNavBtn
+                            icon={<Settings size={17} />}
+                            label="Preferences"
+                            active={view === 'preferences'}
+                            onClick={() => setView('preferences')}
+                        />
                     </div>
                 </div>
 
                 {/* Mobile Bottom Navigation */}
                 <div className="profile-bottom-nav">
-                    <MobileNavBtn icon={<User size={20} />} active={view === 'overview' || view === 'editing'} onClick={() => setView('overview')} />
-                    <MobileNavBtn icon={<Shield size={20} />} active={view === 'security'} onClick={() => setView('security')} />
-                    <MobileNavBtn icon={<Settings size={20} />} active={view === 'preferences'} onClick={() => setView('preferences')} />
-                    <MobileNavBtn icon={<History size={20} />} active={view === 'activity'} onClick={() => setView('activity')} />
-                    <MobileNavBtn icon={<FileText size={20} />} active={view === 'files'} onClick={() => setView('files')} />
-                    <MobileNavBtn icon={<Terminal size={20} />} active={view === 'api'} onClick={() => setView('api')} />
+                    <MobileNavBtn icon={<User size={18} />} active={view === 'overview' || view === 'editing'} onClick={() => setView('overview')} />
+                    <MobileNavBtn icon={<ShieldCheck size={18} />} active={view === 'capabilities'} onClick={() => setView('capabilities')} />
+                    <MobileNavBtn icon={<Lock size={18} />} active={view === 'security'} onClick={() => setView('security')} />
+                    <MobileNavBtn icon={<Settings size={18} />} active={view === 'preferences'} onClick={() => setView('preferences')} />
                 </div>
 
                 {/* Main Content Area */}
                 <div className="profile-content">
-                    {loading && <div style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>Syncing profile...</div>}
-                    {error && <div style={{ padding: '12px', background: '#fef2f2', color: '#ef4444', borderRadius: '8px', marginBottom: '15px' }}>{error}</div>}
-                    
-                    {profile && (
+                    {loading && <div style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>Loading account details...</div>}
+                    {error && <div style={{ padding: '12px 16px', background: '#fef2f2', color: '#ef4444', borderRadius: '8px', marginBottom: '16px', fontSize: '13px' }}>{error}</div>}
+
+                    {profile && !loading && (
                         <>
                             {view === 'overview' && <ProfileOverview profile={profile} onEdit={() => setView('editing')} />}
                             {view === 'editing' && <ProfileEditForm profile={profile} onCancel={() => setView('overview')} onSave={handleProfileUpdate} />}
-                            {view === 'security' && <SecuritySettings />}
+                            {view === 'capabilities' && <ModuleCapabilitiesView user={profile} />}
+                            {view === 'security' && <SecuritySettings notify={notify} user={profile} />}
                             {view === 'preferences' && <UserPreferences />}
-                            {view === 'activity' && <ActivitySection />}
-                            {view === 'files' && <FilesSection />}
-                            {view === 'api' && <ApiAccessSection />}
                         </>
                     )}
                 </div>
@@ -210,42 +263,62 @@ const UserProfile = () => {
     );
 };
 
-// --- Sub-components ---
+// --- Sub-Components ---
 
 const ProfileNavBtn = ({ icon, label, active, onClick }) => (
-    <button onClick={onClick} style={{
-        display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 15px', borderRadius: '10px',
-        border: 'none', background: active ? '#6366f1' : 'transparent',
-        color: active ? 'white' : '#64748b', fontWeight: 600, fontSize: '14px',
-        cursor: 'pointer', transition: 'all 0.3s', width: '100%', textAlign: 'left'
-    }} className={active ? '' : 'hover-bg-light'}>
-        {icon} {label}
+    <button
+        onClick={onClick}
+        style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            padding: '11px 14px',
+            borderRadius: '8px',
+            border: 'none',
+            background: active ? 'var(--primary-color, #16657a)' : 'transparent',
+            color: active ? '#ffffff' : '#64748b',
+            fontWeight: 600,
+            fontSize: '13px',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease',
+            width: '100%',
+            textAlign: 'left'
+        }}
+    >
+        {icon}
+        <span>{label}</span>
     </button>
 );
 
 const MobileNavBtn = ({ icon, active, onClick }) => (
-    <button onClick={onClick} style={{
-        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-        padding: '10px', border: 'none', background: 'transparent',
-        color: active ? '#6366f1' : '#64748b', transition: 'all 0.3s', cursor: 'pointer'
-    }}>
-        <div style={{
-            padding: '8px', borderRadius: '12px',
-            background: active ? '#6366f115' : 'transparent',
-            display: 'flex', alignItems: 'center', justifyContent: 'center'
-        }}>
-            {icon}
-        </div>
+    <button
+        onClick={onClick}
+        style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '8px',
+            border: 'none',
+            background: 'transparent',
+            color: active ? 'var(--primary-color, #16657a)' : '#64748b',
+            cursor: 'pointer'
+        }}
+    >
+        {icon}
     </button>
 );
 
 const ProfileOverview = ({ profile, onEdit }) => (
-    <div className="animations-fade-in">
-        <div className="portal-content-card" style={{ padding: '30px', marginBottom: '25px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '25px' }}>
-                <h3 style={{ margin: 0 }}>Basic Information</h3>
-                <button onClick={onEdit} className="btn-outline btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Edit3 size={14} /> Edit Profile
+    <div className="animations-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div className="portal-content-card" style={{ padding: '24px 28px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <div>
+                    <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#1e293b' }}>Account Information</h3>
+                    <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#64748b' }}>Your personal identity within the enterprise portal</p>
+                </div>
+                <button onClick={onEdit} className="btn-outline btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Edit3 size={14} /> Edit Details
                 </button>
             </div>
 
@@ -253,49 +326,108 @@ const ProfileOverview = ({ profile, onEdit }) => (
                 <DetailItem label="Full Name" value={profile.fullName} icon={<User size={16} />} />
                 <DetailItem label="Email Address" value={profile.email} icon={<Mail size={16} />} />
                 <DetailItem label="Phone Number" value={profile.phone} icon={<Phone size={16} />} />
-                <DetailItem label="Username" value={profile.username} icon={<User size={16} />} />
-                <DetailItem label="Department" value={profile.department} icon={<Building size={16} />} />
-                <DetailItem label="Address" value={profile.address} icon={<MapPin size={16} />} />
+                <DetailItem label="Username" value={`@${profile.username}`} icon={<User size={16} />} />
+                <DetailItem label="Assigned Role" value={profile.role} icon={<Shield size={16} />} />
+                <DetailItem label="Company / Tenant" value={profile.company} icon={<Building size={16} />} />
+                <DetailItem label="Account Status" value={profile.status} icon={<CheckCircle size={16} />} />
+                <DetailItem label="Member Since" value={profile.dateJoined} icon={<Clock size={16} />} />
             </div>
 
-            <div style={{ marginTop: '30px', borderTop: '1px solid #f1f5f9', paddingTop: '25px' }}>
-                <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#64748b' }}>About Me</h4>
-                <p style={{ fontSize: '14px', lineHeight: '1.6', color: '#1e293b', margin: 0 }}>{profile.bio}</p>
-            </div>
-        </div>
-
-        <div className="profile-skills-grid">
-            <div className="portal-content-card" style={{ padding: '25px' }}>
-                <h4 style={{ margin: '0 0 15px 0' }}>Professional Skills</h4>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                    {(profile.skills || []).map(skill => (
-                        <span key={skill} style={{ padding: '6px 14px', borderRadius: '10px', background: '#f1f5f9', color: '#475569', fontSize: '13px', fontWeight: 600 }}>{skill}</span>
-                    ))}
-                </div>
-            </div>
-            <div className="portal-content-card" style={{ padding: '25px' }}>
-                <h4 style={{ margin: '0 0 15px 0' }}>Certifications</h4>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {(profile.certifications || []).map(cert => (
-                        <div key={cert} style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#1e293b', fontSize: '14px' }}>
-                            <CheckCircle size={16} color="#10b981" /> {cert}
-                        </div>
-                    ))}
-                </div>
+            <div style={{ marginTop: '24px', borderTop: '1px solid #f1f5f9', paddingTop: '20px' }}>
+                <h4 style={{ margin: '0 0 6px 0', fontSize: '13px', color: '#64748b', fontWeight: 600 }}>About & Bio</h4>
+                <p style={{ fontSize: '13px', lineHeight: '1.6', color: '#334155', margin: 0 }}>
+                    {profile.bio}
+                </p>
             </div>
         </div>
     </div>
 );
 
 const DetailItem = ({ label, value, icon }) => (
-    <div style={{ display: 'flex', gap: '15px' }}>
-        <div style={{ color: '#6366f1', marginTop: '3px' }}>{icon}</div>
+    <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+        <div style={{ color: 'var(--primary-color, #16657a)', marginTop: '2px' }}>{icon}</div>
         <div>
-            <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '2px' }}>{label}</div>
-            <div style={{ fontSize: '14px', fontWeight: 700, color: '#1e293b' }}>{value}</div>
+            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, marginBottom: '2px' }}>{label}</div>
+            <div style={{ fontSize: '13px', fontWeight: 600, color: '#1e293b' }}>{value || '—'}</div>
         </div>
     </div>
 );
+
+/**
+ * Module Capabilities Matrix: Visually displays what the user can and cannot access
+ */
+const ModuleCapabilitiesView = ({ user }) => {
+    const isSuper = user?.is_superuser || isAdminUser(user);
+
+    return (
+        <div className="animations-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div className="portal-content-card" style={{ padding: '24px 28px' }}>
+                <div style={{ marginBottom: '20px' }}>
+                    <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#1e293b' }}>
+                        Your Authorized Module Access
+                    </h3>
+                    <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#64748b' }}>
+                        Access control permissions inherited through your assigned enterprise role ({user.role})
+                    </p>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '12px' }}>
+                    {MODULE_NAV_CONFIG.map((mod) => {
+                        const hasAccess = isSuper || canAccessModule(mod, user);
+                        const ModIcon = mod.icon || Layout;
+
+                        return (
+                            <div
+                                key={mod.id}
+                                style={{
+                                    border: '1px solid',
+                                    borderColor: hasAccess ? '#bbf7d0' : '#e2e8f0',
+                                    background: hasAccess ? '#f0fdf4' : '#f8fafc',
+                                    borderRadius: '10px',
+                                    padding: '14px 16px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    gap: '10px'
+                                }}
+                            >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <div style={{
+                                        color: hasAccess ? '#166534' : '#94a3b8',
+                                        display: 'flex',
+                                        alignItems: 'center'
+                                    }}>
+                                        <ModIcon size={18} />
+                                    </div>
+                                    <div>
+                                        <div style={{ fontSize: '13px', fontWeight: 600, color: hasAccess ? '#0f172a' : '#64748b' }}>
+                                            {mod.label}
+                                        </div>
+                                        <div style={{ fontSize: '11px', color: hasAccess ? '#15803d' : '#94a3b8' }}>
+                                            {hasAccess ? (isSuper ? 'Super Admin Clearance' : 'Authorized for your role') : 'Permission Required'}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    {hasAccess ? (
+                                        <span style={{ fontSize: '11px', fontWeight: 700, color: '#16a34a', background: '#dcfce7', padding: '3px 8px', borderRadius: '12px' }}>
+                                            ✓ Granted
+                                        </span>
+                                    ) : (
+                                        <span style={{ fontSize: '11px', fontWeight: 600, color: '#94a3b8', background: '#f1f5f9', padding: '3px 8px', borderRadius: '12px' }}>
+                                            🔒 Restricted
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const ProfileEditForm = ({ profile, onCancel, onSave }) => {
     const [fullName, setFullName] = useState(profile.fullName || '');
@@ -310,276 +442,248 @@ const ProfileEditForm = ({ profile, onCancel, onSave }) => {
     };
 
     return (
-        <div className="portal-content-card animations-fade-in" style={{ padding: '30px' }}>
-            <h3 style={{ margin: '0 0 25px 0' }}>Edit Personal Information</h3>
-            <form onSubmit={handleSubmit} className="edit-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                <EditInputField label="Full Name" value={fullName} onChange={e => setFullName(e.target.value)} />
-                <EditInputField label="Email Address" value={email} onChange={e => setEmail(e.target.value)} disabled />
-                <EditInputField label="Phone Number" value={phone} onChange={e => setPhone(e.target.value)} />
-                <EditInputField label="Address" value={address} onChange={e => setAddress(e.target.value)} />
-                <EditInputField label="Job Title" value={profile.jobTitle} disabled />
-                <EditInputField label="Department" value={profile.department} disabled />
+        <div className="portal-content-card animations-fade-in" style={{ padding: '24px 28px' }}>
+            <h3 style={{ margin: '0 0 20px 0', fontSize: '16px', fontWeight: 700, color: '#1e293b' }}>
+                Edit Personal Information
+            </h3>
+            <form onSubmit={handleSubmit} className="edit-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '6px' }}>Full Name</label>
+                    <input
+                        type="text"
+                        value={fullName}
+                        onChange={e => setFullName(e.target.value)}
+                        style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                        required
+                    />
+                </div>
+
+                <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '6px' }}>Email Address</label>
+                    <input
+                        type="email"
+                        value={email}
+                        disabled
+                        style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#f8fafc', color: '#94a3b8', fontSize: '13px' }}
+                    />
+                </div>
+
+                <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '6px' }}>Phone Number</label>
+                    <input
+                        type="text"
+                        value={phone}
+                        onChange={e => setPhone(e.target.value)}
+                        style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                    />
+                </div>
+
+                <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '6px' }}>Location / Address</label>
+                    <input
+                        type="text"
+                        value={address}
+                        onChange={e => setAddress(e.target.value)}
+                        style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                    />
+                </div>
 
                 <div style={{ gridColumn: 'span 2' }}>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#64748b', marginBottom: '8px' }}>Bio / About Me</label>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '6px' }}>Bio / Description</label>
                     <textarea
                         value={bio}
                         onChange={e => setBio(e.target.value)}
-                        style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0', minHeight: '100px', fontSize: '14px', background: 'white' }}
-                    ></textarea>
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', minHeight: '80px', fontSize: '13px' }}
+                    />
                 </div>
 
-                <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '10px' }}>
-                    <button type="button" onClick={onCancel} className="btn-outline" style={{ padding: '10px 25px' }}>Cancel</button>
-                    <button type="submit" className="btn-primary" style={{ padding: '10px 25px' }}>Save Changes</button>
+                <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px' }}>
+                    <button type="button" onClick={onCancel} className="btn-outline" style={{ padding: '8px 20px', fontSize: '13px' }}>Cancel</button>
+                    <button type="submit" className="btn-primary" style={{ padding: '8px 20px', fontSize: '13px' }}>Save Changes</button>
                 </div>
             </form>
         </div>
     );
 };
 
-const EditInputField = ({ label, value, onChange, type = "text", disabled = false }) => (
-    <div>
-        <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#64748b', marginBottom: '8px' }}>{label}</label>
-        <input
-            type={type}
-            value={value || ''}
-            onChange={onChange}
-            disabled={disabled}
-            style={{ width: '100%', padding: '10px 15px', borderRadius: '10px', border: '1px solid #e2e8f0', background: disabled ? '#f8fafc' : 'white', fontSize: '14px' }}
-        />
-    </div>
-);
+/**
+ * Real Password Change & Active Session Security
+ */
+const SecuritySettings = ({ notify, user }) => {
+    const [currentPassword, setCurrentPassword] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+    const [success, setSuccess] = useState('');
 
-const InputField = ({ label, defaultValue, type = "text", disabled = false }) => (
-    <div>
-        <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#64748b', marginBottom: '8px' }}>{label}</label>
-        <input
-            type={type}
-            defaultValue={defaultValue}
-            disabled={disabled}
-            style={{ width: '100%', padding: '10px 15px', borderRadius: '10px', border: '1px solid #e2e8f0', background: disabled ? '#f8fafc' : 'white', fontSize: '14px' }}
-        />
-    </div>
-);
+    const handlePasswordUpdate = async (e) => {
+        e.preventDefault();
+        setError('');
+        setSuccess('');
 
-const SecuritySettings = () => (
-    <div className="animations-fade-in">
-        <div className="portal-content-card" style={{ padding: '30px', marginBottom: '25px' }}>
-            <h3 style={{ margin: '0 0 25px 0' }}>Update Password</h3>
-            <form className="security-form" style={{ maxWidth: '450px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                <InputField label="Current Password" type="password" placeholder="••••••••" />
-                <InputField label="New Password" type="password" placeholder="••••••••" />
-                <InputField label="Confirm New Password" type="password" placeholder="••••••••" />
-                <button type="submit" className="btn-primary" style={{ alignSelf: 'flex-start', padding: '10px 25px' }}>Update Password</button>
-            </form>
-        </div>
+        if (newPassword !== confirmPassword) {
+            setError('New password and confirmation do not match.');
+            return;
+        }
 
-        <div className="portal-content-card" style={{ padding: '30px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
-                <div>
-                    <h3 style={{ margin: 0 }}>Two-Factor Authentication (2FA)</h3>
-                    <p style={{ margin: '5px 0 0 0', color: '#64748b', fontSize: '14px' }}>Add an extra layer of security to your account.</p>
-                </div>
-                <button className="btn-outline" style={{ color: '#10b981', borderColor: '#10b981' }}>Enable 2FA</button>
+        if (newPassword.length < 6) {
+            setError('Password must be at least 6 characters long.');
+            return;
+        }
+
+        setLoading(true);
+        try {
+            await apiClient.users.changePassword({
+                current_password: currentPassword,
+                new_password: newPassword
+            });
+            setSuccess('Your password has been updated successfully.');
+            notify('Password changed successfully.');
+            setCurrentPassword('');
+            setNewPassword('');
+            setConfirmPassword('');
+        } catch (err) {
+            setError(err.message || 'Failed to update password. Please check your current password.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="animations-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div className="portal-content-card" style={{ padding: '24px 28px' }}>
+                <h3 style={{ margin: '0 0 6px 0', fontSize: '16px', fontWeight: 700, color: '#1e293b' }}>
+                    Change Password
+                </h3>
+                <p style={{ margin: '0 0 20px 0', fontSize: '12px', color: '#64748b' }}>
+                    Update your account password. Choose a strong combination of letters, numbers, and symbols.
+                </p>
+
+                {error && (
+                    <div style={{ padding: '10px 14px', background: '#fef2f2', color: '#ef4444', borderRadius: '8px', marginBottom: '16px', fontSize: '13px' }}>
+                        {error}
+                    </div>
+                )}
+                {success && (
+                    <div style={{ padding: '10px 14px', background: '#f0fdf4', color: '#166534', borderRadius: '8px', marginBottom: '16px', fontSize: '13px' }}>
+                        {success}
+                    </div>
+                )}
+
+                <form onSubmit={handlePasswordUpdate} style={{ maxWidth: '440px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                    <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '6px' }}>Current Password</label>
+                        <input
+                            type="password"
+                            placeholder="Enter current password"
+                            value={currentPassword}
+                            onChange={e => setCurrentPassword(e.target.value)}
+                            required
+                            style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                        />
+                    </div>
+
+                    <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '6px' }}>New Password</label>
+                        <input
+                            type="password"
+                            placeholder="At least 6 characters"
+                            value={newPassword}
+                            onChange={e => setNewPassword(e.target.value)}
+                            required
+                            style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                        />
+                    </div>
+
+                    <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '6px' }}>Confirm New Password</label>
+                        <input
+                            type="password"
+                            placeholder="Re-enter new password"
+                            value={confirmPassword}
+                            onChange={e => setConfirmPassword(e.target.value)}
+                            required
+                            style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                        />
+                    </div>
+
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="btn-primary"
+                        style={{ alignSelf: 'flex-start', padding: '9px 24px', fontSize: '13px', marginTop: '6px' }}
+                    >
+                        {loading ? 'Updating Password...' : 'Update Password'}
+                    </button>
+                </form>
             </div>
 
-            <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '25px', marginTop: '25px' }}>
-                <h4 style={{ margin: '0 0 20px 0' }}>Active Sessions</h4>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                    {loginActivity.slice(0, 2).map((session, i) => (
-                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
-                            <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-                                <Monitor size={20} color="#64748b" />
-                                <div>
-                                    <div style={{ fontSize: '14px', fontWeight: 700 }}>{session.browser} on {session.device}</div>
-                                    <div style={{ fontSize: '12px', color: '#94a3b8' }}>{session.ip} • Nairobi, Kenya • {i === 0 ? 'Current Session' : '2 hours ago'}</div>
-                                </div>
-                            </div>
-                            {i !== 0 && <button style={{ fontSize: '12px', color: '#ef4444', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer' }}>Revoke</button>}
+            <div className="portal-content-card" style={{ padding: '24px 28px' }}>
+                <h3 style={{ margin: '0 0 6px 0', fontSize: '16px', fontWeight: 700, color: '#1e293b' }}>
+                    Active Session Security
+                </h3>
+                <p style={{ margin: '0 0 16px 0', fontSize: '12px', color: '#64748b' }}>
+                    Information about your active authenticated browser session.
+                </p>
+
+                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: '#ecfdf5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10b981' }}>
+                            <Monitor size={18} />
                         </div>
-                    ))}
+                        <div>
+                            <div style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>
+                                Current Web Session (Authenticated)
+                            </div>
+                            <div style={{ fontSize: '11px', color: '#64748b' }}>
+                                JWT Token Authenticated • Active now
+                            </div>
+                        </div>
+                    </div>
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#10b981', background: '#dcfce7', padding: '3px 8px', borderRadius: '12px' }}>
+                        Active
+                    </span>
                 </div>
-                <button className="btn-text" style={{ marginTop: '20px', color: '#ef4444', fontWeight: 700 }}>Log Out From All Devices</button>
             </div>
         </div>
-    </div>
-);
+    );
+};
 
 const UserPreferences = () => (
-    <div className="animations-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
-        <div className="portal-content-card" style={{ padding: '30px' }}>
-            <h3 style={{ margin: '0 0 25px 0' }}>Appearance & Portal UI</h3>
-            <div style={{ display: 'flex', gap: '20px' }}>
-                <ThemeOption label="Light Mode" active icon={<Sun size={24} />} />
-                <ThemeOption label="Dark Mode" icon={<Moon size={24} />} />
-                <ThemeOption label="System" icon={<Monitor size={24} />} />
-            </div>
-        </div>
-
-        <div className="portal-content-card" style={{ padding: '30px' }}>
-            <h3 style={{ margin: '0 0 25px 0' }}>Global Preferences</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                <SelectField label="Preferred Language" options={["English (US)", "Swahili", "French", "German"]} />
-                <SelectField label="Time Zone" options={["(GMT+03:00) Nairobi", "(GMT+00:00) UTC", "(GMT-05:00) EST"]} />
-                <SelectField label="Date Format" options={["DD/MM/YYYY", "MM/DD/YYYY", "YYYY-MM-DD"]} />
-            </div>
-        </div>
-
-        <div className="portal-content-card" style={{ padding: '30px' }}>
-            <h3 style={{ margin: '0 0 25px 0' }}>Notification Channels</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                <ToggleItem label="Email Notifications" desc="Receive updates, invoices, and summaries via email." active />
-                <ToggleItem label="In-App Notifications" desc="Get pop-up alerts within the portal interface." active />
-                <ToggleItem label="SMS Notifications" desc="Urgent alerts sent directly to your phone." />
-                <ToggleItem label="Browser Push" desc="Notifications even when the portal isn't front & center." />
-            </div>
-        </div>
-    </div>
-);
-
-const ThemeOption = ({ label, icon, active }) => (
-    <div style={{
-        flex: 1, padding: '20px', borderRadius: '15px', border: active ? '2px solid #6366f1' : '1px solid #e2e8f0',
-        textAlign: 'center', cursor: 'pointer', background: active ? '#f5f7ff' : 'white'
-    }}>
-        <div style={{ color: active ? '#6366f1' : '#64748b', marginBottom: '10px' }}>{icon}</div>
-        <div style={{ fontSize: '13px', fontWeight: 700, color: '#1e293b' }}>{label}</div>
-    </div>
-);
-
-const SelectField = ({ label, options }) => (
-    <div>
-        <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#64748b', marginBottom: '8px' }}>{label}</label>
-        <select style={{ width: '100%', padding: '10px 15px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '14px', background: 'white' }}>
-            {options.map(opt => <option key={opt}>{opt}</option>)}
-        </select>
-    </div>
-);
-
-const ToggleItem = ({ label, desc, active }) => (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-            <div style={{ fontSize: '14px', fontWeight: 700 }}>{label}</div>
-            <div style={{ fontSize: '12px', color: '#94a3b8' }}>{desc}</div>
-        </div>
-        <div style={{
-            width: '44px', height: '24px', borderRadius: '12px', background: active ? '#6366f1' : '#e2e8f0',
-            position: 'relative', cursor: 'pointer'
-        }}>
-            <div style={{
-                width: '18px', height: '18px', borderRadius: '50%', background: 'white',
-                position: 'absolute', top: '3px', left: active ? '23px' : '3px',
-                transition: 'all 0.3s'
-            }}></div>
-        </div>
-    </div>
-);
-
-const ActivitySection = () => (
-    <div className="animations-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
-        <div className="portal-content-card" style={{ padding: '25px' }}>
-            <h3 style={{ margin: '0 0 20px 0' }}>Recent Login History</h3>
-            <div className="table-responsive">
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                    <thead>
-                        <tr style={{ borderBottom: '2px solid #f1f5f9' }}>
-                            <th style={{ padding: '12px', fontSize: '13px', color: '#64748b' }}>Date & Time</th>
-                            <th style={{ padding: '12px', fontSize: '13px', color: '#64748b' }}>Device / Browser</th>
-                            <th style={{ padding: '12px', fontSize: '13px', color: '#64748b' }}>IP Address</th>
-                            <th style={{ padding: '12px', fontSize: '13px', color: '#64748b' }}>Location</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {loginActivity.map((log, i) => (
-                            <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                <td style={{ padding: '15px', fontSize: '14px' }}>{log.date}</td>
-                                <td style={{ padding: '15px', fontSize: '14px' }}>{log.device} • {log.browser}</td>
-                                <td style={{ padding: '15px', fontSize: '14px', fontFamily: 'monospace' }}>{log.ip}</td>
-                                <td style={{ padding: '15px', fontSize: '14px' }}>{log.location}</td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <div className="portal-content-card" style={{ padding: '25px' }}>
-            <h3 style={{ margin: '0 0 20px 0' }}>Account Activity Log</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                {activityLog.map((log, i) => (
-                    <div key={i} style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#6366f1' }}></div>
-                        <div style={{ fontSize: '14px', flex: 1 }}>{log.action}</div>
-                        <div style={{ fontSize: '12px', color: '#94a3b8' }}>{log.date}</div>
-                    </div>
-                ))}
-            </div>
-        </div>
-    </div>
-);
-
-const FilesSection = () => (
-    <div className="portal-content-card animations-fade-in" style={{ padding: '25px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
-            <h3 style={{ margin: 0 }}>My Personal Files</h3>
-            <button className="btn-primary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Plus size={16} /> Upload New
-            </button>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '20px' }}>
-            {personalFiles.map(file => (
-                <div key={file.id} style={{ padding: '20px', borderRadius: '15px', border: '1px solid #f1f5f9', textAlign: 'center' }} className="hover-bg-light">
-                    <div style={{ color: '#6366f1', marginBottom: '10px' }}><FileText size={32} /></div>
-                    <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '5px', wordBreak: 'break-all' }}>{file.name}</div>
-                    <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '15px' }}>{file.size} • {file.date}</div>
-                    <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
-                        <button style={{ padding: '6px', borderRadius: '8px', border: 'none', background: '#f1f5f9', color: '#64748b' }}><Download size={14} /></button>
-                        <button style={{ padding: '6px', borderRadius: '8px', border: 'none', background: '#fef2f2', color: '#ef4444' }}><Trash2 size={14} /></button>
-                    </div>
+    <div className="animations-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div className="portal-content-card" style={{ padding: '24px 28px' }}>
+            <h3 style={{ margin: '0 0 6px 0', fontSize: '16px', fontWeight: 700, color: '#1e293b' }}>
+                Portal Interface & Appearance
+            </h3>
+            <p style={{ margin: '0 0 16px 0', fontSize: '12px', color: '#64748b' }}>
+                Choose your display mode and layout theme.
+            </p>
+            <div style={{ display: 'flex', gap: '16px', maxWidth: '400px' }}>
+                <div style={{ flex: 1, padding: '14px', borderRadius: '10px', border: '2px solid var(--primary-color, #16657a)', textAlign: 'center', background: '#f0fdfa' }}>
+                    <Sun size={20} color="var(--primary-color, #16657a)" style={{ margin: '0 auto 6px auto' }} />
+                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#0f172a' }}>Standard Light</div>
                 </div>
-            ))}
+                <div style={{ flex: 1, padding: '14px', borderRadius: '10px', border: '1px solid #e2e8f0', textAlign: 'center', background: '#ffffff', opacity: 0.7 }}>
+                    <Moon size={20} color="#94a3b8" style={{ margin: '0 auto 6px auto' }} />
+                    <div style={{ fontSize: '12px', fontWeight: 600, color: '#64748b' }}>Dark (Coming Soon)</div>
+                </div>
+            </div>
         </div>
-    </div>
-);
 
-const ApiAccessSection = () => (
-    <div className="animations-fade-in">
-        <div className="portal-content-card" style={{ padding: '30px', marginBottom: '25px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <div className="portal-content-card" style={{ padding: '24px 28px' }}>
+            <h3 style={{ margin: '0 0 6px 0', fontSize: '16px', fontWeight: 700, color: '#1e293b' }}>
+                Regional & Localization Defaults
+            </h3>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '14px' }}>
                 <div>
-                    <h3 style={{ margin: 0 }}>Personal API Keys</h3>
-                    <p style={{ margin: '5px 0 0 0', color: '#64748b', fontSize: '14px' }}>Integrate Royal Services into your custom apps.</p>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '6px' }}>Timezone</label>
+                    <input type="text" value="Africa/Nairobi (GMT+03:00)" disabled style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '13px' }} />
                 </div>
-                <button className="btn-primary btn-sm"><Plus size={16} /> Generate Key</button>
-            </div>
-
-            <div style={{ background: '#f8fafc', padding: '15px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                        <div style={{ fontSize: '14px', fontWeight: 700 }}>Production_Main_Key</div>
-                        <div style={{ fontSize: '12px', color: '#64748b' }}>Created: 2 weeks ago • Last used: 2 hours ago</div>
-                    </div>
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                        <button className="btn-text" style={{ fontSize: '12px' }}>View Key</button>
-                        <button className="btn-text" style={{ fontSize: '12px', color: '#ef4444' }}>Revoke</button>
-                    </div>
+                <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '6px' }}>Default Currency</label>
+                    <input type="text" value="KES (Kenya Shilling)" disabled style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '13px' }} />
                 </div>
-            </div>
-
-            <div style={{ fontSize: '13px', color: '#64748b', padding: '15px', borderLeft: '4px solid #f59e0b', background: '#fffbeb' }}>
-                <AlertCircle size={14} style={{ marginRight: '8px', verticalAlign: 'middle' }} />
-                Never share your API keys or post them publicly.
-            </div>
-        </div>
-
-        <div className="portal-content-card" style={{ padding: '30px' }}>
-            <h3 style={{ margin: '0 0 15px 0' }}>API Permissions Scope</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                <ToggleItem label="Read Projects" desc="Allows reading project details and milestones." active />
-                <ToggleItem label="Write Finance" desc="Allows creating invoices and logging expenses." />
-                <ToggleItem label="Read Support" desc="Allows accessing support ticket history." active />
             </div>
         </div>
     </div>

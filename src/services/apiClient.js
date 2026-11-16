@@ -236,6 +236,9 @@ export const apiClient = {
         create: async (userData) => apiClient.post('/api/v1/accounts/users/', userData),
         update: async (id, userData) => apiClient.patch(`/api/v1/accounts/users/${id}/`, userData),
         delete: async (id) => apiClient.delete(`/api/v1/accounts/users/${id}/`),
+        changePassword: async (passwords) => apiClient.post('/api/v1/accounts/users/change-password/', passwords),
+        resetPassword: async (id, newPassword) => apiClient.post(`/api/v1/accounts/users/${id}/reset-password/`, { new_password: newPassword }),
+        toggleActive: async (id) => apiClient.post(`/api/v1/accounts/users/${id}/toggle-active/`),
     },
 
     permissions: {

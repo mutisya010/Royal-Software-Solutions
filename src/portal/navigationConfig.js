@@ -86,8 +86,8 @@ export const MODULE_NAV_CONFIG = [
         label: 'Project Management',
         icon: Briefcase,
         path: '/portal/admin/projects',
-        roles: ['Admin', 'Staff', 'Operations'],
-        permissions: ['projects.view_project', 'pos.view_product', 'utility.view_company'],
+        roles: ['Admin', 'Project Manager', 'Projects', 'Operations'],
+        permissions: ['project_management.view_project', 'projects.view_project'],
         hasSubmenu: true,
         groups: [
             {
@@ -140,7 +140,7 @@ export const MODULE_NAV_CONFIG = [
         icon: Users,
         path: '/portal/admin/hr',
         roles: ['Admin', 'HR'],
-        permissions: ['hr.view_employee', 'utility.view_userprofile', 'auth.view_user'],
+        permissions: ['hr.view_employee'],
         hasSubmenu: true,
         groups: [
             {

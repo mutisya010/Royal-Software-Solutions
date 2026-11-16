@@ -149,6 +149,7 @@ const UsersView = ({ users, roles, canManage, currentUser, reload, notify }) => 
     const [roleFilter, setRoleFilter] = useState('all');
     const [statusFilter, setStatusFilter] = useState('all');
     const [editing, setEditing] = useState(null); // null | {} (new) | user
+    const [resettingUser, setResettingUser] = useState(null);
 
     const filtered = useMemo(() => users.filter(u => {
         const q = query.toLowerCase();
@@ -258,6 +259,7 @@ const UsersView = ({ users, roles, canManage, currentUser, reload, notify }) => 
                                         {canManage ? (
                                             <div className="ur-actions">
                                                 <button title="Edit user" onClick={() => setEditing(u)}><Edit size={14} /></button>
+                                                <button title="Reset password" onClick={() => setResettingUser(u)}><KeyRound size={14} /></button>
                                                 <button title={u.is_active ? 'Deactivate' : 'Activate'} onClick={() => toggleActive(u)}>
                                                     {u.is_active ? <UserX size={14} /> : <UserCheck size={14} />}
                                                 </button>
@@ -281,7 +283,62 @@ const UsersView = ({ users, roles, canManage, currentUser, reload, notify }) => 
                     onSaved={(msg) => { setEditing(null); notify(msg); reload(); }}
                 />
             )}
+
+            {resettingUser && (
+                <ResetPasswordModal
+                    user={resettingUser}
+                    onClose={() => setResettingUser(null)}
+                    onReset={(msg) => { setResettingUser(null); notify(msg); reload(); }}
+                />
+            )}
         </>
+    );
+};
+
+const ResetPasswordModal = ({ user, onClose, onReset }) => {
+    const [password, setPassword] = useState('');
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState(null);
+
+    const submit = async (e) => {
+        e.preventDefault();
+        if (password.length < 6) return setError('Password must be at least 6 characters.');
+        setSaving(true);
+        setError(null);
+        try {
+            await apiClient.users.resetPassword(user.id, password);
+            onReset(`Password for ${user.username} has been reset.`);
+        } catch (err) {
+            setError(errText(err));
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <Modal title={`Reset password for @${user.username}`} subtitle="Set a new password for this account" onClose={onClose}>
+            <form onSubmit={submit}>
+                <div className="ur-modal-body">
+                    {error && <div className="ur-alert">{error}</div>}
+                    <Field label="New Password" hint="Minimum 6 characters">
+                        <input
+                            type="password"
+                            value={password}
+                            onChange={e => setPassword(e.target.value)}
+                            placeholder="Enter new password"
+                            required
+                            autoFocus
+                        />
+                    </Field>
+                </div>
+                <div className="ur-modal-foot">
+                    <button type="button" className="ur-btn" onClick={onClose} disabled={saving}>Cancel</button>
+                    <button type="submit" className="ur-btn primary" disabled={saving}>
+                        {saving ? 'Resetting…' : 'Set New Password'}
+                    </button>
+                </div>
+            </form>
+        </Modal>
     );
 };
 

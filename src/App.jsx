@@ -28,6 +28,7 @@ import SettingsPage from './portal/Settings'
 import UsersRoles from './portal/UsersRoles'
 import DocumentStudio from './portal/document-studio/DocumentStudio'
 import PlannerHub from './portal/planner/PlannerHub'
+import ModuleRouteGuard from './portal/shared/ModuleRouteGuard'
 
 // Client Portal
 import ClientPortalLayout from './portal/ClientPortalLayout'
@@ -80,17 +81,17 @@ function AppContent() {
         <Route path="/portal/admin" element={<PortalLayout />}>
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
-          <Route path="finance" element={<FinanceAccounting />} />
-          <Route path="hr" element={<HRStaff />} />
-          <Route path="sales" element={<SalesManagement />} />
-          <Route path="clients" element={<ClientManagement />} />
-          <Route path="projects" element={<ProjectManagement />} />
-          <Route path="support-tickets" element={<CustomerSupport />} />
+          <Route path="finance" element={<ModuleRouteGuard moduleId="finance"><FinanceAccounting /></ModuleRouteGuard>} />
+          <Route path="hr" element={<ModuleRouteGuard moduleId="hr"><HRStaff /></ModuleRouteGuard>} />
+          <Route path="sales" element={<ModuleRouteGuard moduleId="sales"><SalesManagement /></ModuleRouteGuard>} />
+          <Route path="clients" element={<ModuleRouteGuard moduleId="clients"><ClientManagement /></ModuleRouteGuard>} />
+          <Route path="projects" element={<ModuleRouteGuard moduleId="projects"><ProjectManagement /></ModuleRouteGuard>} />
+          <Route path="support-tickets" element={<ModuleRouteGuard moduleId="support-tickets"><CustomerSupport /></ModuleRouteGuard>} />
           <Route path="profile" element={<UserProfile />} />
-          <Route path="settings" element={<SettingsPage />} />
-          <Route path="users-roles" element={<UsersRoles />} />
-          <Route path="document-studio" element={<DocumentStudio />} />
-          <Route path="planner" element={<PlannerHub />} />
+          <Route path="settings" element={<ModuleRouteGuard moduleId="settings"><SettingsPage /></ModuleRouteGuard>} />
+          <Route path="users-roles" element={<ModuleRouteGuard moduleId="users-roles"><UsersRoles /></ModuleRouteGuard>} />
+          <Route path="document-studio" element={<ModuleRouteGuard moduleId="document-studio"><DocumentStudio /></ModuleRouteGuard>} />
+          <Route path="planner" element={<ModuleRouteGuard moduleId="planner"><PlannerHub /></ModuleRouteGuard>} />
         </Route>
 
         {/* Client Portal Routes */}
