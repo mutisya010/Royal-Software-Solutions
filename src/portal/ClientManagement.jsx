@@ -629,8 +629,8 @@ const ClientDashboard = ({ clients }) => {
                         <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: '#1e293b' }}>Client Growth Trajectory</h3>
                         <span style={{ fontSize: '11px', color: '#94a3b8' }}>Last 5 months</span>
                     </div>
-                    <div style={{ height: '185px' }}>
-                        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                    <div style={{ height: '185px', minHeight: '185px', width: '100%' }}>
+                        <ResponsiveContainer width="100%" height={185} minWidth={0} minHeight={185}>
                             <AreaChart data={[
                                 { month: 'Jan', count: Math.max(0, totalClients - 4) }, 
                                 { month: 'Feb', count: Math.max(0, totalClients - 3) }, 
@@ -652,8 +652,8 @@ const ClientDashboard = ({ clients }) => {
                         <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: '#1e293b' }}>Portfolio by Category</h3>
                         <span style={{ fontSize: '11px', color: '#94a3b8' }}>Breakdown</span>
                     </div>
-                    <div style={{ height: '185px' }}>
-                        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                    <div style={{ height: '185px', minHeight: '185px', width: '100%' }}>
+                        <ResponsiveContainer width="100%" height={185} minWidth={0} minHeight={185}>
                             <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
                                 <Pie data={finalPieData} innerRadius={42} outerRadius={62} paddingAngle={4} dataKey="value">
                                     {['#0f766e', '#0284c7', '#8b5cf6', '#f59e0b', '#ec4899'].map((color, i) => <Cell key={i} fill={color} />)}
