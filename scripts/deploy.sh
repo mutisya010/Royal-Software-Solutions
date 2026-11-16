@@ -131,7 +131,7 @@ ensure_modern_venv() {
 
     if [ "$NEED_REBUILD" = true ]; then
         local CHOSEN_PY=""
-        for cand in python3.12 python3.11 python3.14 python3.10 python3; do
+        for cand in python3.12 python3.11 python3.10 python3; do
             if command -v "$cand" &>/dev/null; then
                 local PY_VER
                 PY_VER=$("$cand" -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>/dev/null || echo "0.0")
@@ -503,6 +503,8 @@ fi
 if [ "${TARGET}" = "all" ] || [ "${TARGET}" = "backend" ]; then
     echo ">>> Updating backend dependencies in ${ACTIVE_VENV}..."
     cd "${BACKEND_DIR}"
+    # Purge numpy and pandas if installed, preventing x86-64-v2 baseline CPU crashes on VPS
+    "${ACTIVE_VENV}/bin/pip" uninstall -y numpy pandas 2>/dev/null || true
     "${ACTIVE_VENV}/bin/pip" install --no-input -r requirements.txt
     "${ACTIVE_VENV}/bin/pip" install --no-input gunicorn
 fi
