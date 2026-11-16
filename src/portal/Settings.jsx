@@ -7,7 +7,7 @@ import {
     Database, Activity, Lock, Globe, Bell, Save,
     Plus, Edit, Trash2, Key, Download, RefreshCw,
     AlertTriangle, FileText, ChevronRight, Check, X,
-    Monitor, Server, Mailbox
+    Monitor, Server, Mailbox, Send
 } from 'lucide-react';
 
 const systemLogs = [
