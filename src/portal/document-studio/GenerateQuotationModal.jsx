@@ -34,6 +34,7 @@ const GenerateQuotationModal = ({ quotation, isOpen, onClose, onGenerated }) => 
     
     // Email dispatch state
     const [showEmailForm, setShowEmailForm] = useState(false);
+    const [emailTo, setEmailTo] = useState('');
     const [emailSubject, setEmailSubject] = useState('');
     const [emailMessage, setEmailMessage] = useState('');
     const [sendingEmail, setSendingEmail] = useState(false);
@@ -60,6 +61,7 @@ const GenerateQuotationModal = ({ quotation, isOpen, onClose, onGenerated }) => 
             const quoteNum = quotation.quotation_number || `QUO-${quotation.id}`;
             const totalStr = Number(quotation.total_amount || 0).toLocaleString();
 
+            setEmailTo(quotation.client_email || quotation.email || '');
             setEmailSubject(`Sales Quotation ${quoteNum} - Royal Software Solutions`);
             setEmailMessage(
                 `Dear ${quotation.client_name || 'Client'},\n\n` +
@@ -144,6 +146,7 @@ const GenerateQuotationModal = ({ quotation, isOpen, onClose, onGenerated }) => 
             const payload = {
                 client: quotation.client || quotation.client_id,
                 channel: 'EMAIL',
+                recipient_email: emailTo,
                 subject: emailSubject,
                 message: emailMessage,
                 document_id: successDoc?.document?.id
@@ -164,6 +167,13 @@ const GenerateQuotationModal = ({ quotation, isOpen, onClose, onGenerated }) => 
         }
     };
 
+    const handleOpenMailClient = () => {
+        const docUrl = successDoc?.download_url || successDoc?.document?.file || '';
+        const fullBody = docUrl ? `${emailMessage}\n\nView Proposal Online: ${window.location.origin}${docUrl}` : emailMessage;
+        const mailtoUrl = `mailto:${encodeURIComponent(emailTo)}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(fullBody)}`;
+        window.open(mailtoUrl, '_blank');
+    };
+
     const handleSendWhatsAppAPI = async (e) => {
         e.preventDefault();
         try {
@@ -173,6 +183,7 @@ const GenerateQuotationModal = ({ quotation, isOpen, onClose, onGenerated }) => 
             const payload = {
                 client: quotation.client || quotation.client_id,
                 channel: 'WHATSAPP',
+                recipient_phone: whatsappPhone,
                 message: whatsappMessage,
                 document_id: successDoc?.document?.id
             };
@@ -193,7 +204,13 @@ const GenerateQuotationModal = ({ quotation, isOpen, onClose, onGenerated }) => 
     };
 
     const handleOpenWhatsAppWeb = () => {
-        const cleanPhone = (whatsappPhone || '').replace(/[^0-9]/g, '');
+        let cleanPhone = (whatsappPhone || '').replace(/[^0-9]/g, '');
+        // Auto format 07xx / 01xx to Kenyan 2547xx / 2541xx if local format entered
+        if (cleanPhone.startsWith('0') && cleanPhone.length === 10) {
+            cleanPhone = '254' + cleanPhone.substring(1);
+        } else if ((cleanPhone.startsWith('7') || cleanPhone.startsWith('1')) && cleanPhone.length === 9) {
+            cleanPhone = '254' + cleanPhone;
+        }
         const docUrl = successDoc?.download_url || successDoc?.document?.file || '';
         const fullMessage = docUrl ? `${whatsappMessage}\n\nDocument Link: ${window.location.origin}${docUrl}` : whatsappMessage;
         const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(fullMessage)}`;
@@ -386,6 +403,18 @@ const GenerateQuotationModal = ({ quotation, isOpen, onClose, onGenerated }) => 
 
                                         <form onSubmit={handleSendEmail} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
                                             <div className="prop-form-group">
+                                                <label>Recipient Email Address</label>
+                                                <input
+                                                    type="email"
+                                                    value={emailTo}
+                                                    onChange={(e) => setEmailTo(e.target.value)}
+                                                    placeholder="client@example.com"
+                                                    className="prop-input"
+                                                    required
+                                                />
+                                            </div>
+
+                                            <div className="prop-form-group">
                                                 <label>Email Subject</label>
                                                 <input
                                                     type="text"
@@ -412,7 +441,17 @@ const GenerateQuotationModal = ({ quotation, isOpen, onClose, onGenerated }) => 
                                                 Attachment: <strong>{quotation.quotation_number}.pdf</strong> will be attached automatically.
                                             </div>
 
-                                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.5rem' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem' }}>
+                                                <button
+                                                    type="button"
+                                                    onClick={handleOpenMailClient}
+                                                    className="btn-secondary-outline"
+                                                    style={{ fontSize: '0.8rem', color: '#2563eb', borderColor: '#bfdbfe' }}
+                                                >
+                                                    <ExternalLink size={13} />
+                                                    Open in Mail Client (mailto)
+                                                </button>
+
                                                 <button
                                                     type="submit"
                                                     disabled={sendingEmail}
