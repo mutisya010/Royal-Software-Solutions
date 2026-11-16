@@ -37,7 +37,7 @@ const SettingsPage = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
-    const canManageSettings = isAdminUser(currentUser) || hasPermission(currentUser, 'accounts.can_manage_settings');
+    const canManageSettings = currentUser?.is_superuser || currentUser?.is_staff || isAdminUser(currentUser) || hasPermission(currentUser, 'accounts.can_manage_settings');
 
     const loadCompanyInfo = async () => {
         setLoading(true);
@@ -267,6 +267,7 @@ const SecuritySettings = () => (
 const EmailSettings = () => {
     const [provider, setProvider] = useState('RESEND');
     const [apiKey, setApiKey] = useState('');
+    const [hasExistingKey, setHasExistingKey] = useState(false);
     const [fromName, setFromName] = useState('Royal Software Solutions');
     const [fromEmail, setFromEmail] = useState('onboarding@resend.dev');
     const [replyTo, setReplyTo] = useState('');
@@ -292,13 +293,19 @@ const EmailSettings = () => {
         try {
             setLoading(true);
             const data = await apiClient.emailConfig.get();
-            if (data && data.provider) {
-                setProvider(data.provider || 'RESEND');
-                setApiKey(data.api_key || '');
-                setFromName(data.from_name || 'Royal Software Solutions');
-                setFromEmail(data.from_email || 'onboarding@resend.dev');
-                setReplyTo(data.reply_to || '');
-                setIsActive(data.is_active !== undefined ? data.is_active : true);
+            if (data) {
+                if (data.provider) setProvider(data.provider);
+                if (data.api_key) {
+                    setApiKey(data.api_key);
+                    setHasExistingKey(true);
+                } else if (data.masked_api_key) {
+                    setApiKey(data.masked_api_key);
+                    setHasExistingKey(true);
+                }
+                if (data.from_name) setFromName(data.from_name);
+                if (data.from_email) setFromEmail(data.from_email);
+                if (data.reply_to) setReplyTo(data.reply_to);
+                if (data.is_active !== undefined) setIsActive(data.is_active);
                 if (data.smtp_host) setSmtpHost(data.smtp_host);
                 if (data.smtp_port) setSmtpPort(String(data.smtp_port));
                 if (data.smtp_username) setSmtpUsername(data.smtp_username);
@@ -330,7 +337,11 @@ const EmailSettings = () => {
                 smtp_password: smtpPassword,
                 smtp_use_tls: smtpUseTls
             };
-            await apiClient.emailConfig.save(payload);
+            const saved = await apiClient.emailConfig.save(payload);
+            if (saved) {
+                if (saved.api_key) setApiKey(saved.api_key);
+                setHasExistingKey(!!(saved.api_key || saved.masked_api_key));
+            }
             setFeedback({ type: 'success', message: 'Email configuration stored in database successfully!' });
         } catch (err) {
             setFeedback({ type: 'error', message: err.message || 'Failed to save configuration.' });
@@ -467,16 +478,23 @@ const EmailSettings = () => {
             {/* Provider Configuration Form */}
             {provider === 'RESEND' ? (
                 <div className="portal-content-card" style={{ padding: '30px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-                        <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: '#005f73', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
-                            <Mail size={20} />
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: '#0f766e', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+                                <Mail size={20} />
+                            </div>
+                            <div>
+                                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700 }}>Resend Gateway Credentials & Headers</h3>
+                                <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#64748b' }}>
+                                    Stored securely in database table <code>email_integration_config</code>
+                                </p>
+                            </div>
                         </div>
-                        <div>
-                            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700 }}>Resend Gateway Credentials & Headers</h3>
-                            <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#64748b' }}>
-                                Stored securely in database table <code>email_integration_config</code> for Company ID 2
-                            </p>
-                        </div>
+                        {hasExistingKey && (
+                            <span style={{ fontSize: '11px', fontWeight: 700, color: '#0f766e', background: '#f0fdfa', padding: '4px 10px', borderRadius: '12px', border: '1px solid #ccfbf1' }}>
+                                ✓ API KEY CONFIGURED IN DB
+                            </span>
+                        )}
                     </div>
 
                     <div className="settings-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
