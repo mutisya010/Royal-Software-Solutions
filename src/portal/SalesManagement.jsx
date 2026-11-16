@@ -1023,6 +1023,21 @@ const QuotationsSection = ({ quotations, quotationRequests, clients = [], produc
     const [selectedQuotationForDoc, setSelectedQuotationForDoc] = useState(null);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [activeRfqForConvert, setActiveRfqForConvert] = useState(null);
+    const [convertingId, setConvertingId] = useState(null);
+
+    const handleConvertToInvoice = async (qt) => {
+        if (!window.confirm(`Convert Quotation ${qt.quotation_number} into a live accounting Invoice in Finance?`)) return;
+        try {
+            setConvertingId(qt.id);
+            const res = await apiClient.royalsoftwares.quotations.convertToInvoice(qt.id);
+            alert(`✅ Invoice ${res?.invoice_number || 'created'} generated successfully in Finance!`);
+            if (onRefresh) onRefresh();
+        } catch (err) {
+            alert(err?.response?.data?.detail || err?.message || 'Failed to convert quotation to invoice');
+        } finally {
+            setConvertingId(null);
+        }
+    };
 
     const handleOpenCreateNew = () => {
         setActiveRfqForConvert(null);
@@ -1092,6 +1107,14 @@ const QuotationsSection = ({ quotations, quotationRequests, clients = [], produc
                                             style={{ background: '#f1f5f9', border: 'none', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: '#475569' }}
                                         >
                                             <Mail size={14} /> Dispatch
+                                        </button>
+                                        <button 
+                                            onClick={() => handleConvertToInvoice(qt)} 
+                                            disabled={convertingId === qt.id}
+                                            title="Convert to Accounting Invoice" 
+                                            style={{ background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', fontWeight: 600 }}
+                                        >
+                                            <DollarSign size={14} /> {convertingId === qt.id ? '...' : 'Invoice'}
                                         </button>
                                     </div>
                                 </td>

@@ -19,6 +19,7 @@ import ListFilterBar from '../shared/ListFilterBar';
 import StatusPillBadge from '../shared/StatusPillBadge';
 import CreateQuotationModal from '../document-studio/CreateQuotationModal';
 import GenerateQuotationModal from '../document-studio/GenerateQuotationModal';
+import { apiClient } from '../../services/apiClient';
 import '../shared/portalShared.css';
 
 const QuotationsListPage = ({
@@ -32,6 +33,21 @@ const QuotationsListPage = ({
     const [statusFilter, setStatusFilter] = useState('ALL');
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [selectedQuotationForDoc, setSelectedQuotationForDoc] = useState(null);
+    const [convertingId, setConvertingId] = useState(null);
+
+    const handleConvertToInvoice = async (qt) => {
+        if (!window.confirm(`Convert Quotation ${qt.quotation_number} into a live Accounting Invoice?`)) return;
+        try {
+            setConvertingId(qt.id);
+            const invoice = await apiClient.royalsoftwares.quotations.convertToInvoice(qt.id);
+            alert(`✅ Invoice ${invoice?.invoice_number || 'created'} generated successfully in Finance!`);
+            if (onRefresh) onRefresh();
+        } catch (err) {
+            alert(err?.response?.data?.detail || err?.message || 'Failed to convert quotation to invoice');
+        } finally {
+            setConvertingId(null);
+        }
+    };
 
     // Compute metrics for Stat Summary Ribbon (Reference Image 4 & 3)
     const ribbonStats = useMemo(() => {
@@ -208,6 +224,16 @@ const QuotationsListPage = ({
                                                     title="Dispatch via Email or WhatsApp"
                                                 >
                                                     <Send size={13} /> Dispatch
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleConvertToInvoice(qt)}
+                                                    disabled={convertingId === qt.id}
+                                                    className="btn-secondary-outline"
+                                                    style={{ padding: '0.35rem 0.65rem', fontSize: '0.78rem', color: '#047857', borderColor: '#a7f3d0', background: '#ecfdf5' }}
+                                                    title="Convert to Accounting Invoice"
+                                                >
+                                                    <DollarSign size={13} /> {convertingId === qt.id ? '...' : 'Invoice'}
                                                 </button>
                                             </div>
                                         </td>
