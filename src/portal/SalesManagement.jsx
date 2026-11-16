@@ -10,6 +10,7 @@ import QuotationsListPage from './sales/QuotationsListPage';
 import ActivitiesFollowupsPage from './sales/ActivitiesFollowupsPage';
 import CommunicationHistoryPage from './sales/CommunicationHistoryPage';
 import LeadsDirectoryPage from './sales/LeadsDirectoryPage';
+import ListPageHeader from './shared/ListPageHeader';
 import {
     Search, Filter, Plus, Users, Building, MonitorSmartphone,
     TrendingUp, DollarSign, Target, Briefcase, ChevronRight,
@@ -209,34 +210,6 @@ const SalesManagement = () => {
                     }
                 }
             `}</style>
-            {/* Header */}
-            <div className="sales-header-section" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
-                <div>
-                    <h2 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 800, color: '#1e293b' }}>Sales Management</h2>
-                    <p style={{ margin: '5px 0 0 0', color: '#64748b', fontSize: '14px' }}>Welcome back, {userRole}. Here is your sales pipeline overview.</p>
-                </div>
-                <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-                    <select
-                        value={userRole}
-                        onChange={(e) => setUserRole(e.target.value)}
-                        style={{ padding: '8px 12px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '13px', fontWeight: 600, background: 'white' }}
-                    >
-                        <option>Admin</option>
-                        <option>Sales Manager</option>
-                        <option>Sales Agent</option>
-                    </select>
-                    {view === 'sales_registry' ? (
-                        <button className="btn-primary" onClick={() => setShowRecordSale(true)} style={{ padding: '10px 20px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <Plus size={18} /> Record Sale
-                        </button>
-                    ) : (
-                        <button className="btn-primary" style={{ padding: '10px 20px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <Plus size={18} /> New Deal
-                        </button>
-                    )}
-                </div>
-            </div>
-
             {/* View Content */}
             {view === 'dashboard' && (
                 <SalesOverviewDashboard 
@@ -684,8 +657,18 @@ const PipelineBoard = ({ deals = [], stages = [], onRefresh, onNavigateToQuote }
     };
 
     return (
-        <div style={{ display: 'flex', gap: '20px', overflowX: 'auto', paddingBottom: '20px', minHeight: '620px' }} className="animations-fade-in">
-            {stages.map(stage => {
+        <div className="portal-page-container animations-fade-in">
+            <ListPageHeader
+                title="Commercial Pipeline Board"
+                subtitle="Visual Kanban stage progression across qualification, proposal, negotiation, and closing."
+                primaryAction={{
+                    label: 'Create New Deal',
+                    icon: Plus,
+                    onClick: () => onNavigateToQuote ? onNavigateToQuote(null) : null
+                }}
+            />
+            <div style={{ display: 'flex', gap: '20px', overflowX: 'auto', paddingBottom: '20px', minHeight: '620px', marginTop: '1rem' }}>
+                {stages.map(stage => {
                 const stageDeals = deals.filter(d => (d.stage || '').toLowerCase() === stage.id);
                 const stageTotalVal = stageDeals.reduce((sum, d) => sum + (Number(d.value) || 0), 0);
                 return (
@@ -801,6 +784,7 @@ const PipelineBoard = ({ deals = [], stages = [], onRefresh, onNavigateToQuote }
                     </div>
                 );
             })}
+            </div>
         </div>
     );
 };
