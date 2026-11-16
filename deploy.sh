@@ -52,12 +52,23 @@ NEXUS_PROD_API_URL="${NEXUS_API_URL:-https://easybizz.royalsoftwares.co.ke/}"
 # Enforce Django settings module for Business ERP
 export DJANGO_SETTINGS_MODULE="erp.settings"
 
-# Source backend production environment variables if .env exists
+# Safely load backend production environment variables without source/eval syntax errors
 if [ -f "${BACKEND_DIR}/.env" ]; then
-    set -a
-    # shellcheck disable=SC1090
-    source "${BACKEND_DIR}/.env"
-    set +a
+    while IFS= read -r line || [ -n "$line" ]; do
+        line="$(echo "$line" | tr -d '\r' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+        case "$line" in
+            \#*|"") continue ;;
+        esac
+        if [[ "$line" =~ ^([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]]; then
+            key="${BASH_REMATCH[1]}"
+            val="${BASH_REMATCH[2]}"
+            val="${val%\"}"
+            val="${val#\"}"
+            val="${val%\'}"
+            val="${val#\'}"
+            export "$key"="$val"
+        fi
+    done < "${BACKEND_DIR}/.env"
 fi
 
 # PostgreSQL credentials: defaults to port 5433 (PostgreSQL 16)
