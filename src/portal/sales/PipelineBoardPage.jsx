@@ -497,3 +497,4 @@ const PipelineBoardPage = ({
 };
 
 export default PipelineBoardPage;
+

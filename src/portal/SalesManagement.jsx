@@ -12,6 +12,7 @@ import CommunicationHistoryPage from './sales/CommunicationHistoryPage';
 import LeadsDirectoryPage from './sales/LeadsDirectoryPage';
 import PipelineBoardPage from './sales/PipelineBoardPage';
 import DealsManagementPage from './sales/DealsManagementPage';
+import SalesRegistryPage from './sales/SalesRegistryPage';
 import ListPageHeader from './shared/ListPageHeader';
 import {
     Search, Filter, Plus, Users, Building, MonitorSmartphone,
@@ -69,7 +70,7 @@ const SalesManagement = () => {
         setLoading(true);
         try {
             const [salesResp, customersResp, productsResp, leadsResp, dealsResp, quotesResp, quoteReqsResp, actsResp] = await Promise.all([
-                apiClient.sales.list().catch(() => []),
+                apiClient.royalsoftwares.sales.list().catch(() => []),
                 apiClient.clients.list().catch(() => []),
                 apiClient.get('/api/v1/royalsoftwares/products/').catch(() => []),
                 apiClient.royalsoftwares.leads.list().catch(() => []),
@@ -266,19 +267,14 @@ const SalesManagement = () => {
             )}
 
             {view === 'sales_registry' && (
-                showRecordSale ?
-                    <RecordSaleForm 
-                        onCancel={() => setShowRecordSale(false)} 
-                        onSave={handleRecordSaleSubmit}
-                        customers={customers}
-                        products={products}
-                    /> :
-                    <SalesRegistrySection 
-                        sales={sales} 
-                        onAddNew={() => setShowRecordSale(true)} 
-                        loading={loading}
-                        error={error}
-                    />
+                <SalesRegistryPage 
+                    sales={sales} 
+                    clients={customers} 
+                    products={products} 
+                    quotations={quotations}
+                    onRefresh={loadData}
+                    loading={loading}
+                />
             )}
 
             {view === 'leads' && (
