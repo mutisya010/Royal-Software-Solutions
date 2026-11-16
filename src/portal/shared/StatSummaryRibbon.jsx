@@ -22,6 +22,7 @@ const StatSummaryRibbon = ({ items = [] }) => {
                             </span>
                         )}
                     </div>
+                    
                     <span className="stat-ribbon-label">{item.label}</span>
                 </div>
             ))}

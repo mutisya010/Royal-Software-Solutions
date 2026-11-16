@@ -9,13 +9,14 @@ import RequestsForQuotationPage from './sales/RequestsForQuotationPage';
 import QuotationsListPage from './sales/QuotationsListPage';
 import ActivitiesFollowupsPage from './sales/ActivitiesFollowupsPage';
 import CommunicationHistoryPage from './sales/CommunicationHistoryPage';
+import LeadsDirectoryPage from './sales/LeadsDirectoryPage';
 import {
     Search, Filter, Plus, Users, Building, MonitorSmartphone,
     TrendingUp, DollarSign, Target, Briefcase, ChevronRight,
     MoreVertical, FileText, Download, Mail, Phone, Calendar,
     Clock, CheckCircle, AlertCircle, PieChart as PieChartIcon,
     BarChart, ExternalLink, UserPlus, Zap, MessageSquare,
-    ArrowUpRight, ArrowDownRight, Layout
+    ArrowUpRight, ArrowDownRight, Layout, X, Check
 } from 'lucide-react';
 import {
     ResponsiveContainer, AreaChart, Area, XAxis, YAxis,
@@ -306,9 +307,10 @@ const SalesManagement = () => {
             )}
 
             {view === 'leads' && (
-                <LeadsSection 
+                <LeadsDirectoryPage 
                     leads={leads} 
                     onRefresh={loadData} 
+                    loading={loading}
                 />
             )}
 

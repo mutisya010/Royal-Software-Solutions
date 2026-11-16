@@ -11,7 +11,8 @@ import {
     FileCheck,
     Clock,
     ArrowUpRight,
-    Briefcase
+    Briefcase,
+    UserPlus
 } from 'lucide-react';
 import {
     ResponsiveContainer,
@@ -147,6 +148,28 @@ const SalesOverviewDashboard = ({
 
                 {/* Quick Action Tiles (Reference Image 1 & 2) */}
                 <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                    <button
+                        type="button"
+                        onClick={() => onNavigateView && onNavigateView('leads')}
+                        style={{
+                            background: 'rgba(255, 255, 255, 0.15)',
+                            backdropFilter: 'blur(10px)',
+                            border: '1px solid rgba(255, 255, 255, 0.25)',
+                            color: '#ffffff',
+                            padding: '0.75rem 1.15rem',
+                            borderRadius: 12,
+                            fontSize: '0.86rem',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            transition: 'all 0.2s'
+                        }}
+                    >
+                        <UserPlus size={16} /> Capture Lead
+                    </button>
+
                     <button
                         type="button"
                         onClick={() => onNavigateView && onNavigateView('quotations')}

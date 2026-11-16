@@ -179,26 +179,30 @@ export const MODULE_NAV_CONFIG = [
         hasSubmenu: true,
         groups: [
             {
-                title: 'COMMERCIAL OPERATIONS',
+                title: 'SALES FUNNEL & PIPELINE',
                 items: [
                     { label: 'Sales Overview', view: 'dashboard', icon: LayoutDashboard },
-                    { label: 'Products & Services', view: 'catalogue', icon: Layers },
-                    { label: 'Requests for Quotation', view: 'rfqs', icon: FileCheck },
-                    { label: 'Quotations', view: 'quotations', icon: FileText },
-                    { label: 'Activities & Follow-ups', view: 'activities', icon: Clock },
-                    { label: 'Communication History', view: 'communications', icon: MessageSquare }
+                    { label: 'Leads Directory', view: 'leads', icon: Users },
+                    { label: 'Pipeline Board', view: 'pipeline', icon: Activity },
+                    { label: 'Deals Management', view: 'deals', icon: TrendingUp }
                 ]
             },
             {
-                title: 'PIPELINE & DEALS',
+                title: 'PROPOSALS & ORDERS',
                 items: [
-                    { label: 'Pipeline Board', view: 'pipeline', icon: Activity },
-                    { label: 'Deals Management', view: 'deals', icon: TrendingUp },
-                    { label: 'Leads Directory', view: 'leads', icon: Users },
+                    { label: 'Quotations', view: 'quotations', icon: FileText },
+                    { label: 'Requests for Quotation', view: 'rfqs', icon: FileCheck },
                     { label: 'Sales Registry', view: 'sales_registry', icon: History }
                 ]
+            },
+            {
+                title: 'CLIENT ENGAGEMENT',
+                items: [
+                    { label: 'Activities & Follow-ups', view: 'activities', icon: Clock },
+                    { label: 'Communication History', view: 'communications', icon: MessageSquare },
+                    { label: 'Products & Services', view: 'catalogue', icon: Layers }
+                ]
             }
-
         ]
     },
     {
