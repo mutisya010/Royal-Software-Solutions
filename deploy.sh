@@ -48,8 +48,9 @@ NEXUS_PROD_API_URL="${NEXUS_API_URL:-https://easybizz.royalsoftwares.co.ke/}"
 # ------------------------------------------------------------------------------
 # 2. DJANGO & DATABASE ENVIRONMENT CONFIGURATION
 # ------------------------------------------------------------------------------
-# Enforce Django settings module for Business ERP
+# Enforce Django settings module & environment for Business ERP
 export DJANGO_SETTINGS_MODULE="erp.settings"
+export DJANGO_ENV="production"
 
 # Safely load backend production environment variables without source/eval syntax errors
 if [ -f "${BACKEND_DIR}/.env" ]; then
