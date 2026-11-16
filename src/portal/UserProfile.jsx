@@ -7,7 +7,7 @@ import {
     Monitor, Lock, LogOut, History, FileText,
     Plus, Download, Trash2, Edit3, Camera,
     CheckCircle, AlertCircle, Eye, EyeOff,
-    Layout, Settings, Activity, Terminal, ShieldCheck, CheckSquare, XCircle
+    Layout, Settings, Activity, Terminal, ShieldCheck, CheckSquare, XCircle, Clock
 } from 'lucide-react';
 
 const UserProfile = () => {
