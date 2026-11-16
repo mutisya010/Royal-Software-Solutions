@@ -78,9 +78,23 @@ elif [ -n "${POSTGRES_PASSWORD:-}" ]; then
     export PGPASSWORD="${POSTGRES_PASSWORD}"
 fi
 export PGUSER="${DB_USER:-admin}"
-export PGPORT="${DB_PORT:-5433}"
 export PGHOST="${DB_HOST:-localhost}"
 export DBNAME="${DB_NAME:-easybizdb}"
+
+# Enforce PostgreSQL 16 (port 5433) because Django 5.x strictly requires PostgreSQL >= 14
+if [ "${DB_PORT:-5433}" = "5432" ] || [ "${PGPORT:-5433}" = "5432" ]; then
+    echo ">>> Notice: Detected DB_PORT=5432 (PostgreSQL 12, unsupported by Django 5.x)."
+    echo ">>> Enforcing DB_PORT=5433 (PostgreSQL 16) in environment and backend .env..."
+    export DB_PORT="5433"
+    export PGPORT="5433"
+    if [ -f "${BACKEND_DIR}/.env" ]; then
+        sed -i 's/^DB_PORT=5432/DB_PORT=5433/' "${BACKEND_DIR}/.env" 2>/dev/null || true
+        sed -i 's/^POSTGRES_PORT=5432/POSTGRES_PORT=5433/' "${BACKEND_DIR}/.env" 2>/dev/null || true
+    fi
+else
+    export DB_PORT="${DB_PORT:-5433}"
+    export PGPORT="${PGPORT:-5433}"
+fi
 
 echo "============================================================"
 echo " Starting Royal Softwares & Business ERP Manager"
@@ -365,9 +379,21 @@ migrate_postgres_12_to_16() {
 
     # 3. Ensure role and database exist on PostgreSQL 16 (port 5433)
     echo ">>> Checking database and user setup on PostgreSQL 16 (port ${PG16_PORT})..."
+    if command -v sudo &>/dev/null; then
+        sudo -u postgres psql -p "${PG16_PORT}" -tc "SELECT 1 FROM pg_roles WHERE rolname = '${PGUSER}';" 2>/dev/null | grep -q 1 || {
+            echo ">>> Creating role '${PGUSER}' on PostgreSQL 16..."
+            sudo -u postgres psql -p "${PG16_PORT}" -c "CREATE USER \"${PGUSER}\" WITH PASSWORD '${PGPASSWORD}' SUPERUSER;" 2>/dev/null || true
+        }
+    fi
+
     if ! psql -h "${PGHOST}" -p "${PG16_PORT}" -U "${PGUSER}" -d postgres -tc "SELECT 1 FROM pg_database WHERE datname = '${DBNAME}';" 2>/dev/null | grep -q 1; then
         echo ">>> Creating database '${DBNAME}' on PostgreSQL 16 (port ${PG16_PORT})..."
-        psql -h "${PGHOST}" -p "${PG16_PORT}" -U "${PGUSER}" -d postgres -c "CREATE DATABASE \"${DBNAME}\" OWNER \"${PGUSER}\";"
+        if command -v sudo &>/dev/null; then
+            sudo -u postgres psql -p "${PG16_PORT}" -c "CREATE DATABASE \"${DBNAME}\" OWNER \"${PGUSER}\";" 2>/dev/null || \
+            psql -h "${PGHOST}" -p "${PG16_PORT}" -U "${PGUSER}" -d postgres -c "CREATE DATABASE \"${DBNAME}\" OWNER \"${PGUSER}\";" 2>/dev/null || true
+        else
+            psql -h "${PGHOST}" -p "${PG16_PORT}" -U "${PGUSER}" -d postgres -c "CREATE DATABASE \"${DBNAME}\" OWNER \"${PGUSER}\";" 2>/dev/null || true
+        fi
     fi
 
     # 4. Restore dump into PostgreSQL 16 (port 5433)
@@ -531,6 +557,33 @@ fi
 # 11. STEP 5: DATABASE MIGRATIONS
 # ------------------------------------------------------------------------------
 if [ "${TARGET}" = "all" ] || [ "${TARGET}" = "backend" ]; then
+    # Auto-detect if PostgreSQL 16 database needs migration from PostgreSQL 12
+    local PG16_TABLES=0
+    if command -v psql &>/dev/null; then
+        PG16_TABLES=$(psql -h "${PGHOST}" -p 5433 -U "${PGUSER}" -d "${DBNAME}" -tc "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null || echo "0")
+        PG16_TABLES=$(echo "${PG16_TABLES}" | tr -d '[:space:]')
+        [ -z "${PG16_TABLES}" ] && PG16_TABLES=0
+    fi
+
+    if [ "${PG16_TABLES}" -eq 0 ]; then
+        local PG12_TABLES=0
+        if command -v psql &>/dev/null; then
+            PG12_TABLES=$(psql -h "${PGHOST}" -p 5432 -U "${PGUSER}" -d "${DBNAME}" -tc "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null || echo "0")
+            PG12_TABLES=$(echo "${PG12_TABLES}" | tr -d '[:space:]')
+            [ -z "${PG12_TABLES}" ] && PG12_TABLES=0
+        fi
+
+        if [ "${PG12_TABLES}" -gt 0 ]; then
+            echo ">>> Detected ${PG12_TABLES} existing tables on PostgreSQL 12 (port 5432) and unpopulated PostgreSQL 16 (port 5433)."
+            echo ">>> Automatically executing database migration from PG 12 -> PG 16 to preserve all existing data..."
+            migrate_postgres_12_to_16
+        fi
+    fi
+
+    # Explicitly ensure DB_PORT is exported as 5433 for Django process
+    export DB_PORT="5433"
+    export PGPORT="5433"
+
     echo ">>> Running Django database migrations against ${PGHOST}:${PGPORT}..."
     cd "${BACKEND_DIR}"
     "${ACTIVE_VENV}/bin/python" manage.py migrate --noinput
