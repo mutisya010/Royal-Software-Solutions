@@ -305,11 +305,30 @@ const SalesManagement = () => {
                     />
             )}
 
-            {view === 'leads' && <LeadsSection leads={leads} />}
+            {view === 'leads' && (
+                <LeadsSection 
+                    leads={leads} 
+                    onRefresh={loadData} 
+                />
+            )}
 
-            {view === 'pipeline' && <PipelineBoard deals={deals} stages={pipelineStages} />}
+            {view === 'pipeline' && (
+                <PipelineBoard 
+                    deals={deals} 
+                    stages={pipelineStages} 
+                    onRefresh={loadData}
+                    onNavigateToQuote={(deal) => setSearchParams({ view: 'quotations', dealId: deal?.id })}
+                />
+            )}
 
-            {view === 'deals' && <DealsManagementSection deals={deals} />}
+            {view === 'deals' && (
+                <DealsManagementSection 
+                    deals={deals} 
+                    clients={customers} 
+                    onRefresh={loadData}
+                    onNavigateToQuote={(deal) => setSearchParams({ view: 'quotations', dealId: deal?.id })}
+                />
+            )}
 
             {view === 'reports' && <SalesReportsSection />}
 
@@ -411,18 +430,80 @@ const SalesDashboard = ({ stats }) => {
     );
 };
 
-const LeadsSection = ({ leads }) => {
+const LeadsSection = ({ leads = [], onRefresh }) => {
+    const [searchTerm, setSearchTerm] = useState('');
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [name, setName] = useState('');
+    const [companyName, setCompanyName] = useState('');
+    const [source, setSource] = useState('Website');
+    const [estimatedValue, setEstimatedValue] = useState('');
+    const [submitting, setSubmitting] = useState(false);
+    const [convertingId, setConvertingId] = useState(null);
+
+    const handleCreateLead = async (e) => {
+        e.preventDefault();
+        if (!name.trim()) return;
+        try {
+            setSubmitting(true);
+            await apiClient.royalsoftwares.leads.create({
+                name: name.trim(),
+                company_name: companyName.trim() || undefined,
+                source,
+                estimated_value: parseFloat(estimatedValue) || 0,
+                status: 'NEW'
+            });
+            setIsAddModalOpen(false);
+            setName('');
+            setCompanyName('');
+            setEstimatedValue('');
+            if (onRefresh) onRefresh();
+        } catch (err) {
+            console.error('Failed to create lead:', err);
+            alert('Could not save lead.');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleConvertToDeal = async (leadId) => {
+        try {
+            setConvertingId(leadId);
+            const deal = await apiClient.royalsoftwares.leads.convertToDeal(leadId);
+            alert(`Lead successfully converted to Deal "${deal.name}"! Client and pipeline deal have been established.`);
+            if (onRefresh) onRefresh();
+        } catch (err) {
+            console.error('Failed to convert lead:', err);
+            alert('Could not convert lead to deal.');
+        } finally {
+            setConvertingId(null);
+        }
+    };
+
+    const filteredLeads = leads.filter(l =>
+        (l.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (l.company_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (l.source || '').toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
     return (
         <div className="portal-content-card animations-fade-in" style={{ padding: '25px' }}>
             <div className="leads-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px', gap: '20px', flexWrap: 'wrap' }}>
-                <h3 style={{ margin: 0 }}>Lead Management</h3>
+                <div>
+                    <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>Sales Leads</h3>
+                    <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#64748b' }}>Inbound prospects, referrals, and qualifying opportunities</p>
+                </div>
                 <div className="leads-actions" style={{ display: 'flex', gap: '10px' }}>
                     <div className="search-container" style={{ position: 'relative' }}>
                         <Search style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} size={16} />
-                        <input type="text" placeholder="Search leads..." style={{ padding: '10px 10px 10px 35px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '14px', width: '250px' }} />
+                        <input
+                            type="text"
+                            placeholder="Search leads..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            style={{ padding: '10px 10px 10px 35px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '14px', width: '250px' }}
+                        />
                     </div>
-                    <button style={{ padding: '10px', borderRadius: '10px', border: '1px solid #e2e8f0', background: 'white' }}><Filter size={18} /></button>
-                    <button className="btn-primary" style={{ padding: '10px 20px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <button onClick={() => setIsAddModalOpen(true)} className="btn-primary" style={{ padding: '10px 20px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <UserPlus size={18} /> Add Lead
                     </button>
                 </div>
@@ -432,83 +513,510 @@ const LeadsSection = ({ leads }) => {
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                     <thead>
                         <tr style={{ borderBottom: '2px solid #f1f5f9' }}>
-                            <th style={{ padding: '15px', color: '#64748b', fontSize: '13px', fontWeight: 600 }}>Lead Name</th>
-                            <th style={{ padding: '15px', color: '#64748b', fontSize: '13px', fontWeight: 600 }}>Source</th>
-                            <th style={{ padding: '15px', color: '#64748b', fontSize: '13px', fontWeight: 600 }}>Agent</th>
+                            <th style={{ padding: '15px', color: '#64748b', fontSize: '13px', fontWeight: 600 }}>Lead Name & Company</th>
+                            <th style={{ padding: '15px', color: '#64748b', fontSize: '13px', fontWeight: 600 }}>Acquisition Source</th>
+                            <th style={{ padding: '15px', color: '#64748b', fontSize: '13px', fontWeight: 600 }}>Assigned Agent</th>
                             <th style={{ padding: '15px', color: '#64748b', fontSize: '13px', fontWeight: 600 }}>Estimated Value</th>
                             <th style={{ padding: '15px', color: '#64748b', fontSize: '13px', fontWeight: 600 }}>Status</th>
                             <th style={{ padding: '15px', color: '#64748b', fontSize: '13px', fontWeight: 600 }}>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {leads.map((lead) => (
-                            <tr key={lead.id} style={{ borderBottom: '1px solid #f1f5f9' }} className="hover-bg-light">
-                                <td style={{ padding: '15px' }}>
-                                    <div style={{ fontWeight: 600, fontSize: '14px' }}>{lead.name}</div>
-                                    <div style={{ fontSize: '12px', color: '#94a3b8' }}>{lead.company_name}</div>
-                                </td>
-                                <td style={{ padding: '15px', fontSize: '14px' }}>{lead.source}</td>
-                                <td style={{ padding: '15px', fontSize: '14px' }}>{lead.assigned_to_name || 'Unassigned'}</td>
-                                <td style={{ padding: '15px', fontWeight: 700, color: '#1e293b' }}>{lead.estimated_value}</td>
-                                <td style={{ padding: '15px' }}>
-                                    <span style={{
-                                        padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: 700,
-                                        background: lead.status === 'QUALIFIED' ? '#ecfdf5' : '#eff6ff',
-                                        color: lead.status === 'QUALIFIED' ? '#10b981' : '#6366f1'
-                                    }}>{lead.status}</span>
-                                </td>
-                                <td style={{ padding: '15px' }}>
-                                    <div style={{ display: 'flex', gap: '8px' }}>
-                                        <button title="Contact" style={{ background: '#f1f5f9', border: 'none', padding: '6px', borderRadius: '8px', cursor: 'pointer' }}><Mail size={16} /></button>
-                                        <button title="More" style={{ background: 'none', border: 'none', padding: '6px', cursor: 'pointer', color: '#94a3b8' }}><MoreVertical size={16} /></button>
-                                    </div>
+                        {filteredLeads.length === 0 ? (
+                            <tr>
+                                <td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
+                                    No leads recorded. Click "Add Lead" to capture your first opportunity.
                                 </td>
                             </tr>
-                        ))}
+                        ) : (
+                            filteredLeads.map((lead) => (
+                                <tr key={lead.id} style={{ borderBottom: '1px solid #f1f5f9' }} className="hover-bg-light">
+                                    <td style={{ padding: '15px' }}>
+                                        <div style={{ fontWeight: 700, fontSize: '14px', color: '#0f172a' }}>{lead.name}</div>
+                                        <div style={{ fontSize: '12px', color: '#64748b' }}>{lead.company_name || 'Individual Prospect'}</div>
+                                    </td>
+                                    <td style={{ padding: '15px', fontSize: '14px', color: '#475569' }}>{lead.source || 'Direct Outreach'}</td>
+                                    <td style={{ padding: '15px', fontSize: '14px', color: '#475569' }}>{lead.assigned_to_name || 'Unassigned'}</td>
+                                    <td style={{ padding: '15px', fontWeight: 700, color: '#0f766e' }}>
+                                        KES {Number(lead.estimated_value || 0).toLocaleString()}
+                                    </td>
+                                    <td style={{ padding: '15px' }}>
+                                        <span style={{
+                                            padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: 700,
+                                            background: lead.status === 'QUALIFIED' ? '#ecfdf5' : '#eff6ff',
+                                            color: lead.status === 'QUALIFIED' ? '#10b981' : '#6366f1'
+                                        }}>
+                                            {lead.status}
+                                        </span>
+                                    </td>
+                                    <td style={{ padding: '15px' }}>
+                                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                            {lead.status !== 'QUALIFIED' ? (
+                                                <button
+                                                    onClick={() => handleConvertToDeal(lead.id)}
+                                                    disabled={convertingId === lead.id}
+                                                    title="Promote this lead to an active client and pipeline deal"
+                                                    style={{
+                                                        background: '#ecfdf5',
+                                                        color: '#047857',
+                                                        border: '1px solid #a7f3d0',
+                                                        padding: '6px 12px',
+                                                        borderRadius: '6px',
+                                                        fontSize: '11px',
+                                                        fontWeight: 700,
+                                                        cursor: 'pointer',
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        gap: '4px'
+                                                    }}
+                                                >
+                                                    <Zap size={13} /> {convertingId === lead.id ? 'Converting...' : 'Convert to Deal'}
+                                                </button>
+                                            ) : (
+                                                <span style={{ fontSize: '12px', color: '#10b981', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                                    <Check size={14} /> Active Deal
+                                                </span>
+                                            )}
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))
+                        )}
                     </tbody>
                 </table>
             </div>
+
+            {/* Add Lead Modal */}
+            {isAddModalOpen && (
+                <div className="planner-modal-overlay" onClick={() => setIsAddModalOpen(false)}>
+                    <div className="planner-modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px' }}>
+                        <div className="planner-modal-header">
+                            <span style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>Capture New Sales Lead</span>
+                            <button onClick={() => setIsAddModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <form onSubmit={handleCreateLead}>
+                            <div className="planner-modal-body">
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>
+                                        Contact / Lead Name <span style={{ color: '#ef4444' }}>*</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={name}
+                                        onChange={(e) => setName(e.target.value)}
+                                        placeholder="e.g. Dr. Catherine Nduta"
+                                        style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '14px', fontWeight: 600 }}
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>
+                                        Company or Organization Name
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={companyName}
+                                        onChange={(e) => setCompanyName(e.target.value)}
+                                        placeholder="e.g. Apex Health Logistics Ltd"
+                                        style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                                    />
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>
+                                            Lead Source
+                                        </label>
+                                        <select
+                                            value={source}
+                                            onChange={(e) => setSource(e.target.value)}
+                                            style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', background: '#fff' }}
+                                        >
+                                            <option value="Website">Website Inbound</option>
+                                            <option value="Referral">Client Referral</option>
+                                            <option value="LinkedIn">LinkedIn / Social</option>
+                                            <option value="Direct Outreach">Direct Call / Outreach</option>
+                                            <option value="Conference">Conference / Event</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>
+                                            Estimated Value (KES)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            value={estimatedValue}
+                                            onChange={(e) => setEstimatedValue(e.target.value)}
+                                            placeholder="e.g. 250000"
+                                            style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="planner-modal-footer">
+                                <button type="button" onClick={() => setIsAddModalOpen(false)} className="btn-planner-quick">
+                                    Cancel
+                                </button>
+                                <button type="submit" disabled={submitting} className="btn-planner-quick primary">
+                                    {submitting ? 'Saving...' : 'Add Lead'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
 
-const PipelineBoard = ({ deals, stages }) => (
-    <div style={{ display: 'flex', gap: '20px', overflowX: 'auto', paddingBottom: '20px', minHeight: '600px' }} className="animations-fade-in">
-        {stages.map(stage => (
-            <div key={stage.id} style={{ minWidth: '300px', flex: 1 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><div style={{ width: '8px', height: '8px', borderRadius: '50%', background: stage.color }} /><h4 style={{ margin: 0, fontSize: '14px', textTransform: 'uppercase' }}>{stage.label}</h4><span style={{ background: '#f1f5f9', color: '#64748b', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '10px' }}>{deals.filter(d => d.stage === stage.id).length}</span></div>
-                    <button style={{ background: 'none', border: 'none', color: '#94a3b8' }}><Plus size={16} /></button>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {deals.filter(d => (d.stage || '').toLowerCase() === stage.id).map(deal => (
-                        <div key={deal.id} className="portal-content-card" style={{ padding: '15px', cursor: 'pointer', borderLeft: `3px solid ${stage.color}` }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}><span style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8' }}>#{deal.id}</span><MoreVertical size={14} color="#94a3b8" /></div>
-                            <h5 style={{ margin: '0 0 5px 0', fontSize: '14px' }}>{deal.name}</h5><div style={{ fontSize: '12px', color: '#64748b', marginBottom: '12px' }}>{deal.client_name}</div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><div style={{ fontWeight: 800 }}>{deal.value}</div><div style={{ fontSize: '11px', color: '#6366f1', fontWeight: 700, background: '#eff6ff', padding: '2px 6px', borderRadius: '4px' }}>{deal.probability_percentage}%</div></div>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        ))}
-    </div>
-);
+const PipelineBoard = ({ deals = [], stages = [], onRefresh, onNavigateToQuote }) => {
+    const handleUpdateStage = async (dealId, newStage) => {
+        try {
+            await apiClient.royalsoftwares.deals.updateStage(dealId, newStage);
+            if (onRefresh) onRefresh();
+        } catch (err) {
+            console.error('Failed to advance deal stage:', err);
+            alert('Could not update deal stage.');
+        }
+    };
 
-const DealsManagementSection = ({ deals }) => (
-    <div className="portal-content-card animations-fade-in" style={{ padding: '25px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}><h3>Active Sales Deals</h3><button className="btn-primary" style={{ padding: '10px 20px', borderRadius: '10px' }}><Target size={18} style={{ marginRight: '8px' }} /> Create Deal</button></div>
-        <div className="table-responsive">
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                <thead><tr style={{ borderBottom: '2px solid #f1f5f9' }}><th style={{ padding: '15px' }}>Deal Name</th><th style={{ padding: '15px' }}>Value</th><th style={{ padding: '15px' }}>Stage</th><th style={{ padding: '15px' }}>Probability</th><th style={{ padding: '15px' }}>Next Step</th><th style={{ padding: '15px' }}>Actions</th></tr></thead>
-                <tbody>{deals.map((deal) => (
-                    <tr key={deal.id} style={{ borderBottom: '1px solid #f1f5f9' }} className="hover-bg-light">
-                        <td style={{ padding: '15px' }}><div style={{ fontWeight: 600 }}>{deal.name}</div><div style={{ fontSize: '12px', color: '#94a3b8' }}>{deal.client_name}</div></td><td style={{ padding: '15px', fontWeight: 700 }}>{deal.value}</td><td style={{ padding: '15px' }}><span style={{ padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, background: '#f1f5f9', color: '#64748b' }}>{(deal.stage || '').toUpperCase()}</span></td><td style={{ padding: '15px' }}><div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><div style={{ flex: 1, height: '6px', background: '#e2e8f0', borderRadius: '3px', width: '60px' }}><div style={{ width: deal.probability_percentage + '%', height: '100%', background: '#6366f1', borderRadius: '3px' }} /></div><span>{deal.probability_percentage}%</span></div></td><td style={{ padding: '15px', color: '#64748b' }}>Proposal Follow-up</td><td style={{ padding: '15px' }}><button className="btn-text">View Details</button></td>
-                    </tr>
-                ))}</tbody>
-            </table>
+    return (
+        <div style={{ display: 'flex', gap: '20px', overflowX: 'auto', paddingBottom: '20px', minHeight: '620px' }} className="animations-fade-in">
+            {stages.map(stage => {
+                const stageDeals = deals.filter(d => (d.stage || '').toLowerCase() === stage.id);
+                const stageTotalVal = stageDeals.reduce((sum, d) => sum + (Number(d.value) || 0), 0);
+                return (
+                    <div key={stage.id} style={{ minWidth: '310px', flex: 1, background: '#f8fafc', padding: '14px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: stage.color }} />
+                                <h4 style={{ margin: 0, fontSize: '13px', fontWeight: 800, textTransform: 'uppercase', color: '#1e293b' }}>
+                                    {stage.label}
+                                </h4>
+                                <span style={{ background: '#ffffff', color: '#475569', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                                    {stageDeals.length}
+                                </span>
+                            </div>
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, marginBottom: '14px' }}>
+                            Volume: KES {stageTotalVal.toLocaleString()}
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            {stageDeals.length === 0 ? (
+                                <div style={{ padding: '20px', textAlign: 'center', fontSize: '12px', color: '#94a3b8', fontStyle: 'italic', border: '1px dashed #cbd5e1', borderRadius: '8px' }}>
+                                    No deals in this stage
+                                </div>
+                            ) : (
+                                stageDeals.map(deal => (
+                                    <div
+                                        key={deal.id}
+                                        className="portal-content-card"
+                                        style={{
+                                            padding: '16px',
+                                            borderLeft: `4px solid ${stage.color}`,
+                                            boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+                                        }}
+                                    >
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                                            <span style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8' }}>
+                                                DEAL #{deal.id}
+                                            </span>
+                                            <span style={{ fontSize: '11px', color: '#6366f1', fontWeight: 700, background: '#eff6ff', padding: '2px 6px', borderRadius: '4px' }}>
+                                                {deal.probability_percentage || 0}%
+                                            </span>
+                                        </div>
+
+                                        <h5 style={{ margin: '0 0 4px 0', fontSize: '14px', fontWeight: 700, color: '#0f172a' }}>
+                                            {deal.name}
+                                        </h5>
+                                        <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '12px' }}>
+                                            🏢 {deal.client_name || 'Client Account'}
+                                        </div>
+
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                                            <div style={{ fontWeight: 800, fontSize: '15px', color: '#0f766e' }}>
+                                                KES {Number(deal.value || 0).toLocaleString()}
+                                            </div>
+                                            <span style={{ fontSize: '11px', color: '#64748b' }}>
+                                                👤 {deal.assigned_to_name || 'Agent'}
+                                            </span>
+                                        </div>
+
+                                        {/* Stage Switcher Controls */}
+                                        <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '10px' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748b' }}>Stage:</span>
+                                                <select
+                                                    value={(deal.stage || '').toUpperCase()}
+                                                    onChange={(e) => handleUpdateStage(deal.id, e.target.value)}
+                                                    style={{
+                                                        fontSize: '11px',
+                                                        padding: '4px 8px',
+                                                        borderRadius: '6px',
+                                                        border: '1px solid #cbd5e1',
+                                                        background: deal.stage === 'WON' ? '#ecfdf5' : '#ffffff',
+                                                        color: deal.stage === 'WON' ? '#047857' : '#1e293b',
+                                                        fontWeight: 700,
+                                                        cursor: 'pointer'
+                                                    }}
+                                                >
+                                                    {stages.map(s => (
+                                                        <option key={s.id} value={s.id.toUpperCase()}>{s.label}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+
+                                            {deal.stage === 'WON' && (
+                                                <button
+                                                    onClick={() => onNavigateToQuote && onNavigateToQuote(deal)}
+                                                    style={{
+                                                        marginTop: '8px',
+                                                        width: '100%',
+                                                        padding: '6px 10px',
+                                                        borderRadius: '6px',
+                                                        border: '1px solid #6ee7b7',
+                                                        background: '#ecfdf5',
+                                                        color: '#047857',
+                                                        fontSize: '11px',
+                                                        fontWeight: 700,
+                                                        cursor: 'pointer',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        gap: '4px'
+                                                    }}
+                                                >
+                                                    <FileText size={13} /> Generate Quotation
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                );
+            })}
         </div>
-    </div>
-);
+    );
+};
+
+const DealsManagementSection = ({ deals = [], clients = [], onRefresh, onNavigateToQuote }) => {
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [name, setName] = useState('');
+    const [clientId, setClientId] = useState('');
+    const [value, setValue] = useState('');
+    const [stage, setStage] = useState('NEW');
+    const [probability, setProbability] = useState('20');
+    const [submitting, setSubmitting] = useState(false);
+
+    const handleCreateDeal = async (e) => {
+        e.preventDefault();
+        if (!name.trim() || !clientId) {
+            alert('Please fill Deal Name and select a Client.');
+            return;
+        }
+        try {
+            setSubmitting(true);
+            await apiClient.royalsoftwares.deals.create({
+                name: name.trim(),
+                client: clientId,
+                value: parseFloat(value) || 0,
+                stage,
+                probability_percentage: parseInt(probability) || 0
+            });
+            setIsAddModalOpen(false);
+            setName('');
+            setValue('');
+            setClientId('');
+            if (onRefresh) onRefresh();
+        } catch (err) {
+            console.error('Failed to create deal:', err);
+            alert('Could not save deal.');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    return (
+        <div className="portal-content-card animations-fade-in" style={{ padding: '25px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px', flexWrap: 'wrap', gap: '15px' }}>
+                <div>
+                    <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800 }}>Active Sales Deals</h3>
+                    <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#64748b' }}>Complete transaction registry and probability forecast</p>
+                </div>
+                <button onClick={() => setIsAddModalOpen(true)} className="btn-primary" style={{ padding: '10px 20px', borderRadius: '10px' }}>
+                    <Target size={18} style={{ marginRight: '8px' }} /> Create Deal
+                </button>
+            </div>
+
+            <div className="table-responsive">
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                    <thead>
+                        <tr style={{ borderBottom: '2px solid #f1f5f9' }}>
+                            <th style={{ padding: '15px', color: '#64748b', fontSize: '13px', fontWeight: 600 }}>Deal Name & Client</th>
+                            <th style={{ padding: '15px', color: '#64748b', fontSize: '13px', fontWeight: 600 }}>Deal Value</th>
+                            <th style={{ padding: '15px', color: '#64748b', fontSize: '13px', fontWeight: 600 }}>Pipeline Stage</th>
+                            <th style={{ padding: '15px', color: '#64748b', fontSize: '13px', fontWeight: 600 }}>Win Probability</th>
+                            <th style={{ padding: '15px', color: '#64748b', fontSize: '13px', fontWeight: 600 }}>Assigned Agent</th>
+                            <th style={{ padding: '15px', color: '#64748b', fontSize: '13px', fontWeight: 600 }}>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {deals.length === 0 ? (
+                            <tr>
+                                <td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
+                                    No deals currently open. Convert a lead or click "Create Deal".
+                                </td>
+                            </tr>
+                        ) : (
+                            deals.map((deal) => (
+                                <tr key={deal.id} style={{ borderBottom: '1px solid #f1f5f9' }} className="hover-bg-light">
+                                    <td style={{ padding: '15px' }}>
+                                        <div style={{ fontWeight: 700, fontSize: '14px', color: '#0f172a' }}>{deal.name}</div>
+                                        <div style={{ fontSize: '12px', color: '#64748b' }}>{deal.client_name || 'Client Account'}</div>
+                                    </td>
+                                    <td style={{ padding: '15px', fontWeight: 700, color: '#0f766e', fontSize: '14px' }}>
+                                        KES {Number(deal.value || 0).toLocaleString()}
+                                    </td>
+                                    <td style={{ padding: '15px' }}>
+                                        <span style={{
+                                            padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: 700,
+                                            background: deal.stage === 'WON' ? '#ecfdf5' : '#f1f5f9',
+                                            color: deal.stage === 'WON' ? '#047857' : '#475569'
+                                        }}>
+                                            {(deal.stage || '').toUpperCase()}
+                                        </span>
+                                    </td>
+                                    <td style={{ padding: '15px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <div style={{ flex: 1, height: '6px', background: '#e2e8f0', borderRadius: '3px', width: '60px' }}>
+                                                <div style={{ width: `${deal.probability_percentage || 0}%`, height: '100%', background: '#6366f1', borderRadius: '3px' }} />
+                                            </div>
+                                            <span style={{ fontSize: '12px', fontWeight: 700 }}>{deal.probability_percentage || 0}%</span>
+                                        </div>
+                                    </td>
+                                    <td style={{ padding: '15px', fontSize: '13px', color: '#475569' }}>
+                                        {deal.assigned_to_name || 'Unassigned'}
+                                    </td>
+                                    <td style={{ padding: '15px' }}>
+                                        <button
+                                            onClick={() => onNavigateToQuote && onNavigateToQuote(deal)}
+                                            style={{
+                                                background: '#f0fdfa',
+                                                color: '#0f766e',
+                                                border: '1px solid #ccfbf1',
+                                                padding: '6px 12px',
+                                                borderRadius: '6px',
+                                                fontSize: '12px',
+                                                fontWeight: 700,
+                                                cursor: 'pointer',
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '4px'
+                                            }}
+                                        >
+                                            <FileText size={13} /> Quotation
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
+                </table>
+            </div>
+
+            {/* Create Deal Modal */}
+            {isAddModalOpen && (
+                <div className="planner-modal-overlay" onClick={() => setIsAddModalOpen(false)}>
+                    <div className="planner-modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px' }}>
+                        <div className="planner-modal-header">
+                            <span style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>Create Sales Deal</span>
+                            <button onClick={() => setIsAddModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <form onSubmit={handleCreateDeal}>
+                            <div className="planner-modal-body">
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>
+                                        Deal Title <span style={{ color: '#ef4444' }}>*</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={name}
+                                        onChange={(e) => setName(e.target.value)}
+                                        placeholder="e.g. Enterprise Cloud ERP Deployment"
+                                        style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '14px', fontWeight: 600 }}
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>
+                                        Client Account <span style={{ color: '#ef4444' }}>*</span>
+                                    </label>
+                                    <select
+                                        value={clientId}
+                                        onChange={(e) => setClientId(e.target.value)}
+                                        style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', background: '#fff' }}
+                                        required
+                                    >
+                                        <option value="">Select Client...</option>
+                                        {clients.map(c => (
+                                            <option key={c.id} value={c.id}>{c.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>
+                                            Deal Value (KES)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            value={value}
+                                            onChange={(e) => setValue(e.target.value)}
+                                            placeholder="e.g. 500000"
+                                            style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>
+                                            Pipeline Stage
+                                        </label>
+                                        <select
+                                            value={stage}
+                                            onChange={(e) => setStage(e.target.value)}
+                                            style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', background: '#fff' }}
+                                        >
+                                            <option value="NEW">New</option>
+                                            <option value="CONTACTED">Contacted</option>
+                                            <option value="QUALIFIED">Qualified</option>
+                                            <option value="PROPOSAL">Proposal Sent</option>
+                                            <option value="NEGOTIATION">Negotiation</option>
+                                            <option value="WON">Deal Won</option>
+                                            <option value="LOST">Deal Lost</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="planner-modal-footer">
+                                <button type="button" onClick={() => setIsAddModalOpen(false)} className="btn-planner-quick">
+                                    Cancel
+                                </button>
+                                <button type="submit" disabled={submitting} className="btn-planner-quick primary">
+                                    {submitting ? 'Saving...' : 'Create Deal'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
 
 const QuotationsSection = ({ quotations, quotationRequests, clients = [], products = [], onRefresh }) => {
     const [tab, setTab] = useState('active');

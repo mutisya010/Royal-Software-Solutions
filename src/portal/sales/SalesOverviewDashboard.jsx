@@ -33,66 +33,90 @@ const SalesOverviewDashboard = ({
     rfqs = [],
     onNavigateView
 }) => {
-    // Pipeline stats
+    // Pipeline stats calculated from real data
     const stats = useMemo(() => {
         const totalLeads = leads.length;
         const activeDeals = deals.filter(d => d.stage !== 'WON' && d.stage !== 'LOST').length;
         const wonDeals = deals.filter(d => d.stage === 'WON').length;
-        const totalPipelineValue = deals.reduce((sum, d) => sum + (Number(d.value) || 0), 0);
+        const lostDeals = deals.filter(d => d.stage === 'LOST').length;
+        const closedDeals = wonDeals + lostDeals;
+        const winRate = closedDeals > 0 ? Math.round((wonDeals / closedDeals) * 100) : (wonDeals > 0 ? 100 : 0);
+        const totalPipelineValue = deals
+            .filter(d => d.stage !== 'LOST')
+            .reduce((sum, d) => sum + (Number(d.value) || 0), 0);
 
         return [
             {
                 title: 'Total Leads',
-                value: totalLeads || 48,
-                trend: '+12% this month',
+                value: totalLeads,
+                trend: totalLeads > 0 ? `${totalLeads} in pipeline` : 'No leads captured',
                 icon: <Users size={20} />,
                 color: '#16657a',
                 bg: '#f0fdfa'
             },
             {
                 title: 'Active Deals',
-                value: activeDeals || 14,
-                trend: '+5% pipeline',
+                value: activeDeals,
+                trend: activeDeals > 0 ? `${activeDeals} deals in motion` : 'Open new deals',
                 icon: <Target size={20} />,
                 color: '#7c3aed',
                 bg: '#f5f3ff'
             },
             {
                 title: 'Won Deals',
-                value: wonDeals || 9,
-                trend: '38% close rate',
+                value: wonDeals,
+                trend: closedDeals > 0 ? `${winRate}% close rate` : 'Awaiting close',
                 icon: <CheckCircle size={20} />,
                 color: '#10b981',
                 bg: '#ecfdf5'
             },
             {
                 title: 'Pipeline Value',
-                value: `KES ${totalPipelineValue.toLocaleString() || '1,850,000'}`,
-                trend: '+18% ARR',
+                value: `KES ${totalPipelineValue.toLocaleString()}`,
+                trend: quotations.length > 0 ? `${quotations.length} quotes generated` : '0 quotes',
                 icon: <DollarSign size={20} />,
                 color: '#ec5224',
                 bg: '#fff7ed'
             }
         ];
-    }, [leads, deals]);
+    }, [leads, deals, quotations]);
 
-    // Sample timeline area data
-    const chartData = [
-        { month: 'May', pipeline: 450000, revenue: 280000 },
-        { month: 'Jun', pipeline: 620000, revenue: 390000 },
-        { month: 'Jul', pipeline: 580000, revenue: 410000 },
-        { month: 'Aug', pipeline: 840000, revenue: 520000 },
-        { month: 'Sep', pipeline: 920000, revenue: 640000 },
-        { month: 'Oct', pipeline: 1150000, revenue: 780000 }
-    ];
+    // Stage breakdown calculated strictly from real deals
+    const stageData = useMemo(() => [
+        { stage: 'New', count: deals.filter(d => (d.stage || '').toUpperCase() === 'NEW').length },
+        { stage: 'Contacted', count: deals.filter(d => (d.stage || '').toUpperCase() === 'CONTACTED').length },
+        { stage: 'Qualified', count: deals.filter(d => (d.stage || '').toUpperCase() === 'QUALIFIED').length },
+        { stage: 'Proposal', count: deals.filter(d => (d.stage || '').toUpperCase() === 'PROPOSAL').length },
+        { stage: 'Negotiation', count: deals.filter(d => (d.stage || '').toUpperCase() === 'NEGOTIATION').length },
+        { stage: 'Won', count: deals.filter(d => (d.stage || '').toUpperCase() === 'WON').length }
+    ], [deals]);
 
-    const stageData = [
-        { stage: 'New', count: deals.filter(d => d.stage === 'NEW').length || 4 },
-        { stage: 'Contacted', count: deals.filter(d => d.stage === 'CONTACTED').length || 6 },
-        { stage: 'Proposal', count: deals.filter(d => d.stage === 'PROPOSAL').length || 5 },
-        { stage: 'Negotiation', count: deals.filter(d => d.stage === 'NEGOTIATION').length || 3 },
-        { stage: 'Won', count: deals.filter(d => d.stage === 'WON').length || 8 }
-    ];
+    // Live quotation & pipeline chart data
+    const chartData = useMemo(() => {
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const now = new Date();
+        const currentMonthIdx = now.getMonth();
+        // Last 6 months
+        const points = [];
+        for (let i = 5; i >= 0; i--) {
+            const mIdx = (currentMonthIdx - i + 12) % 12;
+            const name = monthNames[mIdx];
+            // Filter quotations or deals in this month
+            const monthDeals = deals.filter(d => {
+                if (!d.created_on) return false;
+                const dDate = new Date(d.created_on);
+                return dDate.getMonth() === mIdx;
+            });
+            const pipelineVal = monthDeals.reduce((sum, d) => sum + (Number(d.value) || 0), 0);
+            const wonVal = monthDeals.filter(d => d.stage === 'WON').reduce((sum, d) => sum + (Number(d.value) || 0), 0);
+            points.push({
+                month: name,
+                pipeline: pipelineVal,
+                revenue: wonVal
+            });
+        }
+        return points;
+    }, [deals]);
 
     return (
         <div className="portal-page-container animations-fade-in">

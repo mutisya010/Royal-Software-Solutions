@@ -142,3 +142,4 @@ export const generateMeetingLink = (title = 'sync') => {
     // https://meet.google.com/new will create a brand new Google Meet room instantly in Chrome/Google Workspace
     return 'https://meet.google.com/new';
 };
+

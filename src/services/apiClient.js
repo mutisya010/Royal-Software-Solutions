@@ -477,14 +477,17 @@ export const apiClient = {
                 const data = await apiClient.get('/api/v1/royalsoftwares/leads/');
                 return data.results || data;
             },
-            create: async (payload) => apiClient.post('/api/v1/royalsoftwares/leads/', payload)
+            create: async (payload) => apiClient.post('/api/v1/royalsoftwares/leads/', payload),
+            convertToDeal: async (id) => apiClient.post(`/api/v1/royalsoftwares/leads/${id}/convert-to-deal/`, {})
         },
         deals: {
-            list: async () => {
-                const data = await apiClient.get('/api/v1/royalsoftwares/deals/');
+            list: async (params) => {
+                const data = await apiClient.get('/api/v1/royalsoftwares/deals/', { params });
                 return data.results || data;
             },
-            create: async (payload) => apiClient.post('/api/v1/royalsoftwares/deals/', payload)
+            create: async (payload) => apiClient.post('/api/v1/royalsoftwares/deals/', payload),
+            update: async (id, payload) => apiClient.patch(`/api/v1/royalsoftwares/deals/${id}/`, payload),
+            updateStage: async (id, stage) => apiClient.post(`/api/v1/royalsoftwares/deals/${id}/update-stage/`, { stage })
         },
         quotations: {
             list: async () => {
@@ -540,25 +543,17 @@ export const apiClient = {
         }
     },
 
-    // Local Storage Database Fallbacks for Unmapped Modules (Projects & Support Tickets)
+    // Unified Project Management API (Live Planner Projects Backend)
     projects: {
-        list: () => {
-            const projects = localStorage.getItem('royal_projects');
-            if (!projects) {
-                const initial = [
-                    { id: 'PRJ-001', name: 'ERP Implementation', client: 'Acme Corp', manager: 'John Doe', status: 'completed', progress: 100 },
-                    { id: 'PRJ-002', name: 'Website Redesign', client: 'Global Tech', manager: 'Sarah Smith', status: 'active', progress: 60 },
-                    { id: 'PRJ-003', name: 'Mobile App Dev', client: 'Stark Ind', manager: 'Mike Johnson', status: 'active', progress: 40 }
-                ];
-                localStorage.setItem('royal_projects', JSON.stringify(initial));
-                return initial;
-            }
-            return JSON.parse(projects);
+        list: async (params) => {
+            const data = await apiClient.get('/api/v1/planner/projects/', { params });
+            return Array.isArray(data) ? data : (data.results || []);
         },
-        save: (projects) => {
-            localStorage.setItem('royal_projects', JSON.stringify(projects));
-            return projects;
-        }
+        get: async (id) => apiClient.get(`/api/v1/planner/projects/${id}/`),
+        create: async (data) => apiClient.post('/api/v1/planner/projects/', data),
+        update: async (id, data) => apiClient.patch(`/api/v1/planner/projects/${id}/`, data),
+        delete: async (id) => apiClient.delete(`/api/v1/planner/projects/${id}/`),
+        save: (projects) => projects
     },
 
     // Document Design Studio
