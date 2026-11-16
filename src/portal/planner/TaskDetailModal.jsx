@@ -24,6 +24,8 @@ const TaskDetailModal = ({
     const [dueDate, setDueDate] = useState('');
     const [estimatedHours, setEstimatedHours] = useState('0');
     const [isPersonal, setIsPersonal] = useState(false);
+    const [assignedTo, setAssignedTo] = useState('');
+    const [users, setUsers] = useState([]);
 
     // Subtasks, Checklist & Comments
     const [subtasks, setSubtasks] = useState([]);
@@ -37,6 +39,24 @@ const TaskDetailModal = ({
     const [error, setError] = useState(null);
 
     useEffect(() => {
+        loadDirectory();
+    }, []);
+
+    const loadDirectory = async () => {
+        try {
+            const list = await apiClient.users.directory();
+            setUsers(list || []);
+        } catch (err) {
+            try {
+                const fallback = await apiClient.users.list();
+                setUsers(fallback || []);
+            } catch (e) {
+                console.warn('Could not load user directory for task assignment:', e);
+            }
+        }
+    };
+
+    useEffect(() => {
         if (task) {
             setTitle(task.title || '');
             setDescription(task.description || '');
@@ -48,6 +68,7 @@ const TaskDetailModal = ({
             setDueDate(task.due_date || '');
             setEstimatedHours(String(task.estimated_hours || '0'));
             setIsPersonal(Boolean(task.is_personal));
+            setAssignedTo(task.assigned_to || task.assigned_to_details?.id || '');
             setSubtasks(task.subtasks || []);
             setChecklists(task.checklist_items || []);
             setComments(task.comments || []);
@@ -62,6 +83,7 @@ const TaskDetailModal = ({
             setDueDate(new Date().toISOString().split('T')[0]);
             setEstimatedHours('0');
             setIsPersonal(false);
+            setAssignedTo('');
             setSubtasks([]);
             setChecklists([]);
             setComments([]);
@@ -91,7 +113,8 @@ const TaskDetailModal = ({
                 start_date: startDate || null,
                 due_date: dueDate || null,
                 estimated_hours: parseFloat(estimatedHours) || 0,
-                is_personal: isPersonal
+                is_personal: isPersonal,
+                assigned_to: isPersonal ? null : (assignedTo ? parseInt(assignedTo) : null)
             };
 
             let saved;
@@ -302,6 +325,48 @@ const TaskDetailModal = ({
                                 type="date"
                                 value={dueDate}
                                 onChange={(e) => setDueDate(e.target.value)}
+                                style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                            />
+                        </div>
+
+                        <div>
+                            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>
+                                Assignee (Staff Member)
+                            </label>
+                            <select
+                                value={assignedTo}
+                                onChange={(e) => setAssignedTo(e.target.value)}
+                                disabled={isPersonal}
+                                style={{
+                                    width: '100%',
+                                    padding: '9px 12px',
+                                    borderRadius: '8px',
+                                    border: '1px solid #cbd5e1',
+                                    fontSize: '13px',
+                                    background: isPersonal ? '#f1f5f9' : '#ffffff',
+                                    cursor: isPersonal ? 'not-allowed' : 'pointer'
+                                }}
+                            >
+                                <option value="">Unassigned (Team Backlog)</option>
+                                {users.map(u => (
+                                    <option key={u.id} value={u.id}>
+                                        {u.full_name} — {u.designation || u.role} ({u.department || 'Operations'})
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>
+                                Estimated Effort (Hours)
+                            </label>
+                            <input
+                                type="number"
+                                min="0"
+                                step="0.5"
+                                value={estimatedHours}
+                                onChange={(e) => setEstimatedHours(e.target.value)}
+                                placeholder="e.g. 4"
                                 style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
                             />
                         </div>

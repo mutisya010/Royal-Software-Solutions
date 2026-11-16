@@ -22,10 +22,30 @@ const TaskManagementView = ({ onSelectTask, onOpenCreateTask }) => {
     const [displayMode, setDisplayMode] = useState('list'); // 'list' | 'kanban'
     const [activeFilter, setActiveFilter] = useState('ALL');
     const [searchQuery, setSearchQuery] = useState('');
+    const [selectedAssignee, setSelectedAssignee] = useState('');
+    const [users, setUsers] = useState([]);
+
+    useEffect(() => {
+        loadUsers();
+    }, []);
+
+    const loadUsers = async () => {
+        try {
+            const list = await apiClient.users.directory();
+            setUsers(list || []);
+        } catch (err) {
+            try {
+                const fallback = await apiClient.users.list();
+                setUsers(fallback || []);
+            } catch (e) {
+                console.warn('Could not load users for task view filter:', e);
+            }
+        }
+    };
 
     useEffect(() => {
         loadTasks();
-    }, [activeFilter]);
+    }, [activeFilter, selectedAssignee]);
 
     const loadTasks = async () => {
         try {
@@ -36,6 +56,10 @@ const TaskManagementView = ({ onSelectTask, onOpenCreateTask }) => {
             else if (activeFilter === 'TEAM') params.view = 'team';
             else if (activeFilter === 'OVERDUE') params.view = 'overdue';
             else if (activeFilter === 'COMPLETED') params.view = 'completed';
+
+            if (selectedAssignee) {
+                params.assigned_to = selectedAssignee;
+            }
 
             const data = await apiClient.planner.tasks.list(params);
             setTasks(data);
@@ -65,15 +89,20 @@ const TaskManagementView = ({ onSelectTask, onOpenCreateTask }) => {
     ], [tasks]);
 
     const filteredTasks = useMemo(() => {
+        let list = tasks;
+        if (selectedAssignee) {
+            list = list.filter(t => String(t.assigned_to || t.assigned_to_details?.id) === String(selectedAssignee));
+        }
         const q = searchQuery.toLowerCase().trim();
-        if (!q) return tasks;
-        return tasks.filter(t =>
+        if (!q) return list;
+        return list.filter(t =>
             (t.title || '').toLowerCase().includes(q) ||
             (t.description || '').toLowerCase().includes(q) ||
             (t.reference_code || '').toLowerCase().includes(q) ||
-            (t.project_name || '').toLowerCase().includes(q)
+            (t.project_name || '').toLowerCase().includes(q) ||
+            (t.assigned_to_details?.full_name || '').toLowerCase().includes(q)
         );
-    }, [tasks, searchQuery]);
+    }, [tasks, searchQuery, selectedAssignee]);
 
     return (
         <div className="planner-container animations-fade-in">
@@ -109,6 +138,50 @@ const TaskManagementView = ({ onSelectTask, onOpenCreateTask }) => {
                 onFilterChange={setActiveFilter}
             />
 
+            {/* Staff Assignee Toolbar Filter */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginTop: '12px', marginBottom: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <User size={15} color="#475569" />
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: '#475569' }}>Staff Assignee:</span>
+                    <select
+                        value={selectedAssignee}
+                        onChange={(e) => setSelectedAssignee(e.target.value)}
+                        style={{
+                            padding: '6px 12px',
+                            borderRadius: '6px',
+                            border: '1px solid #cbd5e1',
+                            fontSize: '13px',
+                            background: '#ffffff',
+                            color: '#1e293b'
+                        }}
+                    >
+                        <option value="">All Team Members ({users.length})</option>
+                        {users.map(u => (
+                            <option key={u.id} value={u.id}>
+                                {u.full_name} — {u.designation || u.role} ({u.department || 'Operations'})
+                            </option>
+                        ))}
+                    </select>
+                    {selectedAssignee && (
+                        <button
+                            type="button"
+                            onClick={() => setSelectedAssignee('')}
+                            style={{
+                                background: '#f1f5f9',
+                                border: '1px solid #cbd5e1',
+                                borderRadius: '4px',
+                                padding: '4px 8px',
+                                fontSize: '11px',
+                                cursor: 'pointer',
+                                color: '#475569'
+                            }}
+                        >
+                            Clear
+                        </button>
+                    )}
+                </div>
+            </div>
+
             {loading ? (
                 <div style={{ padding: '60px', textAlign: 'center', color: '#64748b' }}>
                     <RefreshCw size={26} className="spin" style={{ margin: '0 auto 10px' }} />
@@ -124,6 +197,7 @@ const TaskManagementView = ({ onSelectTask, onOpenCreateTask }) => {
                                     <th style={{ padding: '14px 18px', fontSize: '0.78rem', fontWeight: 700, color: '#475569', width: '40px' }}>Done</th>
                                     <th style={{ padding: '14px 18px', fontSize: '0.78rem', fontWeight: 700, color: '#475569' }}>Code & Title</th>
                                     <th style={{ padding: '14px 18px', fontSize: '0.78rem', fontWeight: 700, color: '#475569' }}>Project</th>
+                                    <th style={{ padding: '14px 18px', fontSize: '0.78rem', fontWeight: 700, color: '#475569' }}>Assignee</th>
                                     <th style={{ padding: '14px 18px', fontSize: '0.78rem', fontWeight: 700, color: '#475569' }}>Priority</th>
                                     <th style={{ padding: '14px 18px', fontSize: '0.78rem', fontWeight: 700, color: '#475569' }}>Status</th>
                                     <th style={{ padding: '14px 18px', fontSize: '0.78rem', fontWeight: 700, color: '#475569' }}>Due Date</th>
@@ -133,7 +207,7 @@ const TaskManagementView = ({ onSelectTask, onOpenCreateTask }) => {
                             <tbody>
                                 {filteredTasks.length === 0 ? (
                                     <tr>
-                                        <td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
+                                        <td colSpan={8} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
                                             No tasks match the active filters. Click "New Task" to create one.
                                         </td>
                                     </tr>
@@ -173,6 +247,39 @@ const TaskManagementView = ({ onSelectTask, onOpenCreateTask }) => {
                                             </td>
                                             <td style={{ padding: '14px 18px', fontSize: '0.84rem', color: '#334155' }}>
                                                 {task.project_name || '—'}
+                                            </td>
+                                            <td style={{ padding: '14px 18px' }}>
+                                                {task.assigned_to_details ? (
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        <div style={{
+                                                            width: '26px',
+                                                            height: '26px',
+                                                            borderRadius: '50%',
+                                                            background: '#e0f2fe',
+                                                            color: '#0369a1',
+                                                            fontSize: '11px',
+                                                            fontWeight: 700,
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            flexShrink: 0
+                                                        }}>
+                                                            {(task.assigned_to_details.full_name || 'U').slice(0, 2).toUpperCase()}
+                                                        </div>
+                                                        <div>
+                                                            <div style={{ fontSize: '0.83rem', fontWeight: 600, color: '#1e293b', whiteSpace: 'nowrap' }}>
+                                                                {task.assigned_to_details.full_name}
+                                                            </div>
+                                                            <div style={{ fontSize: '0.71rem', color: '#64748b', whiteSpace: 'nowrap' }}>
+                                                                {task.assigned_to_details.designation || 'Staff'}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontStyle: 'italic' }}>
+                                                        Unassigned
+                                                    </span>
+                                                )}
                                             </td>
                                             <td style={{ padding: '14px 18px' }}>
                                                 <StatusPillBadge status={task.priority} />
@@ -227,10 +334,34 @@ const TaskManagementView = ({ onSelectTask, onOpenCreateTask }) => {
                                                     📁 {t.project_name}
                                                 </div>
                                             )}
-                                            <div className="kanban-card-meta">
-                                                <span>📅 {t.due_date || 'No due date'}</span>
-                                                {t.checklist_total > 0 && (
-                                                    <span>☑️ {t.checklist_completed}/{t.checklist_total}</span>
+                                            <div className="kanban-card-meta" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                                    <span>📅 {t.due_date || 'No due date'}</span>
+                                                    {t.checklist_total > 0 && (
+                                                        <span>☑️ {t.checklist_completed}/{t.checklist_total}</span>
+                                                    )}
+                                                </div>
+                                                {t.assigned_to_details ? (
+                                                    <div
+                                                        title={`Assignee: ${t.assigned_to_details.full_name} (${t.assigned_to_details.designation || 'Staff'})`}
+                                                        style={{
+                                                            width: '22px',
+                                                            height: '22px',
+                                                            borderRadius: '50%',
+                                                            background: '#005f73',
+                                                            color: '#ffffff',
+                                                            fontSize: '10px',
+                                                            fontWeight: 700,
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            cursor: 'help'
+                                                        }}
+                                                    >
+                                                        {(t.assigned_to_details.full_name || 'U').slice(0, 2).toUpperCase()}
+                                                    </div>
+                                                ) : (
+                                                    <span style={{ fontSize: '10px', color: '#94a3b8' }}>Unassigned</span>
                                                 )}
                                             </div>
                                         </div>

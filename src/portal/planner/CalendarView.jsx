@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
     Calendar as CalendarIcon, ChevronLeft, ChevronRight,
-    Plus, Clock, MapPin, Video, User, X, Check, Filter
+    Plus, Clock, MapPin, Video, User, X, Check, Filter,
+    Download
 } from 'lucide-react';
 import { apiClient } from '../../services/apiClient';
 import ListPageHeader from '../shared/ListPageHeader';
+import { openGoogleCalendar, downloadIcsFile } from './calendarIntegration';
 
 const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -424,6 +426,26 @@ const CalendarView = ({ projects = [] }) => {
                             </div>
 
                             <div className="planner-modal-footer">
+                                {selectedEvent && (
+                                    <>
+                                        <button
+                                            type="button"
+                                            onClick={() => openGoogleCalendar(selectedEvent)}
+                                            className="btn-planner-quick"
+                                            style={{ color: '#1a73e8', borderColor: '#93c5fd', marginRight: 'auto' }}
+                                        >
+                                            <CalendarIcon size={14} color="#1a73e8" /> G-Cal
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => downloadIcsFile(selectedEvent)}
+                                            className="btn-planner-quick"
+                                            style={{ color: '#475569' }}
+                                        >
+                                            <Download size={14} /> .ics
+                                        </button>
+                                    </>
+                                )}
                                 <button type="button" onClick={() => setIsModalOpen(false)} className="btn-planner-quick">
                                     Cancel
                                 </button>

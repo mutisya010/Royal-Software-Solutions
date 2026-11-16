@@ -232,6 +232,10 @@ export const apiClient = {
             const data = await apiClient.get('/api/v1/accounts/users/');
             return data.results || data;
         },
+        directory: async () => {
+            const data = await apiClient.get('/api/v1/accounts/users/directory/');
+            return Array.isArray(data) ? data : (data.results || []);
+        },
         get: async (id) => apiClient.get(`/api/v1/accounts/users/${id}/`),
         create: async (userData) => apiClient.post('/api/v1/accounts/users/', userData),
         update: async (id, userData) => apiClient.patch(`/api/v1/accounts/users/${id}/`, userData),
