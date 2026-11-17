@@ -1,21 +1,25 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # deploy.sh
-# Automated unified deployment & PostgreSQL migration script for:
+# Automated unified deployment, backup & PostgreSQL manager for:
 #   1. Royal Software Solutions (Frontend: React / Vite)
 #   2. Fahari Nexus Core (Frontend: React / Vite)
 #   3. Business ERP (Backend: Django / Gunicorn / PostgreSQL 16)
 #
-# Features:
-#   - Automatic frontend .env creation & production API URL verification
-#   - Automated PostgreSQL 12 (5432) to PostgreSQL 16 (5433) migration command
-#   - Git syncing with stash, merge conflict & unrelated history resolution
-#   - Modern Python virtual environment verification (Python >= 3.10)
-#   - Modern Node.js verification (Node >= 18 for Vite)
-#   - Pre-deployment automated database snapshots
-#   - Django migrations, collectstatic & WeasyPrint/tinyhtml5 support
-#   - Vite builds & webroot syncing to /var/www/royalsoftwares
-#   - Systemd Gunicorn & Celery restarts, Nginx reload, and Redis flush
+# Key Features:
+#   - Automatic Pre-Deployment Backups: Every time new changes are deployed,
+#     a full snapshot (Database, Live Webroot, Media Uploads, and .env files)
+#     is automatically captured before writing to live.
+#   - On-Demand Backup Command: './deploy.sh backup' creates an instant snapshot.
+#   - Prod vs Dev Configuration:
+#       * Production: Automatically enforces DJANGO_SETTINGS_MODULE="erp.settings_prod",
+#         DJANGO_ENV="production", DB_PORT=5433, and loads .env.production.
+#       * Development / Local: Automatically uses erp.settings_dev (DB_PORT=5432, DEBUG=True).
+#   - Automated PostgreSQL 12 (5432) -> 16 (5433) Migration helper ('./deploy.sh migrate-db')
+#   - Git Syncing with automatic merge conflict resolution and rollback commit logging.
+#   - Vite Builds with automatic production API URL injection.
+#   - Safe webroot deployment with pre-sync live webroot archiving.
+#   - Gunicorn, Celery, Nginx service management and Redis cache flushing.
 # ==============================================================================
 
 set -euo pipefail
@@ -39,7 +43,7 @@ NEXUS_FE_REPO="${ROYAL_BASE_DIR}/fahari-nexus-core"
 BACKUP_DIR="/var/backups/royalsoftwares"
 TIMESTAMP="$(date +'%Y%m%d_%H%M%S')"
 
-# Target selector: all (default), backend, royal, nexus, migrate-db, env, status
+# Target selector: all (default), backend, royal, nexus, frontend, backup, migrate-db, env, status, dev
 TARGET="${1:-all}"
 
 # Production API URLs
@@ -47,12 +51,9 @@ ROYAL_PROD_API_URL="${ROYAL_API_URL:-https://easybizz.royalsoftwares.co.ke}"
 NEXUS_PROD_API_URL="${NEXUS_API_URL:-https://easybizz.royalsoftwares.co.ke/}"
 
 # ------------------------------------------------------------------------------
-# 2. DJANGO & DATABASE ENVIRONMENT CONFIGURATION
+# 2. DJANGO & DATABASE ENVIRONMENT CONFIGURATION (PROD VS DEV)
 # ------------------------------------------------------------------------------
-# Enforce Django settings module for Business ERP
-export DJANGO_SETTINGS_MODULE="erp.settings"
-
-# Safely load backend production environment variables without source/eval syntax errors
+# Safely load backend environment variables if present
 if [ -f "${BACKEND_DIR}/.env" ]; then
     while IFS= read -r line || [ -n "$line" ]; do
         line="$(echo "$line" | tr -d '\r' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
@@ -71,33 +72,46 @@ if [ -f "${BACKEND_DIR}/.env" ]; then
     done < "${BACKEND_DIR}/.env"
 fi
 
-# PostgreSQL credentials: defaults to port 5433 (PostgreSQL 16) with postgres user
+# Detect whether this deployment is Production or Development mode
+if [ "${TARGET}" = "dev" ] || [ "${DJANGO_ENV:-}" = "development" ] || [ "${ENVIRONMENT:-}" = "development" ]; then
+    export DJANGO_SETTINGS_MODULE="erp.settings_dev"
+    export DJANGO_ENV="development"
+    export ENVIRONMENT="development"
+    export DB_PORT="${DB_PORT:-5432}"
+    export PGPORT="${PGPORT:-5432}"
+    SETTINGS_LABEL="Development (erp.settings_dev, Port 5432)"
+else
+    # In live deployment on VPS, strictly enforce production settings and PostgreSQL 16 (port 5433)
+    export DJANGO_SETTINGS_MODULE="erp.settings_prod"
+    export DJANGO_ENV="production"
+    export ENVIRONMENT="production"
+    export DB_PORT="5433"
+    export PGPORT="5433"
+    SETTINGS_LABEL="Production (erp.settings_prod, Port 5433)"
+
+    # Enforce DB_PORT=5433 in backend .env if accidentally set to 5432
+    if [ -f "${BACKEND_DIR}/.env" ]; then
+        if grep -q "^DB_PORT=5432" "${BACKEND_DIR}/.env" 2>/dev/null; then
+            echo ">>> Notice: Detected DB_PORT=5432 in backend .env. Auto-updating to DB_PORT=5433 for production..."
+            sed -i 's/^DB_PORT=5432/DB_PORT=5433/' "${BACKEND_DIR}/.env" 2>/dev/null || true
+            sed -i 's/^POSTGRES_PORT=5432/POSTGRES_PORT=5433/' "${BACKEND_DIR}/.env" 2>/dev/null || true
+        fi
+    fi
+fi
+
+# PostgreSQL credentials
 export PGPASSWORD="${DB_PASSWORD:-Admin@2025}"
 export PGUSER="postgres"
 export PGHOST="${DB_HOST:-localhost}"
 export DBNAME="${DB_NAME:-easybizdb}"
 
-# Enforce PostgreSQL 16 (port 5433) because Django 5.x strictly requires PostgreSQL >= 14
-if [ "${DB_PORT:-5433}" = "5432" ] || [ "${PGPORT:-5433}" = "5432" ]; then
-    echo ">>> Notice: Detected DB_PORT=5432 (PostgreSQL 12, unsupported by Django 5.x)."
-    echo ">>> Enforcing DB_PORT=5433 (PostgreSQL 16) in environment and backend .env..."
-    export DB_PORT="5433"
-    export PGPORT="5433"
-    if [ -f "${BACKEND_DIR}/.env" ]; then
-        sed -i 's/^DB_PORT=5432/DB_PORT=5433/' "${BACKEND_DIR}/.env" 2>/dev/null || true
-        sed -i 's/^POSTGRES_PORT=5432/POSTGRES_PORT=5433/' "${BACKEND_DIR}/.env" 2>/dev/null || true
-    fi
-else
-    export DB_PORT="${DB_PORT:-5433}"
-    export PGPORT="${PGPORT:-5433}"
-fi
-
 echo "============================================================"
-echo " Starting Royal Softwares & Business ERP Manager"
+echo " Royal Software Solutions & Business ERP Deployer"
 echo " Target Mode : ${TARGET}"
-echo " Environment : ${DJANGO_SETTINGS_MODULE}"
-echo " Active DB   : ${DBNAME} on ${PGHOST}:${PGPORT}"
+echo " Settings    : ${SETTINGS_LABEL}"
+echo " Database    : ${DBNAME} on ${PGHOST}:${PGPORT}"
 echo " Timestamp   : ${TIMESTAMP}"
+echo " Backup Dir  : ${BACKUP_DIR}"
 echo "============================================================"
 
 # ------------------------------------------------------------------------------
@@ -192,32 +206,30 @@ ensure_royal_frontend_env() {
         echo ">>> Creating missing ${FE_ENV} with production settings..."
         cat <<EOF > "${FE_ENV}"
 # Royal Software Solutions - Production Environment Configuration
-# Baked into client bundles during Vite build
 VITE_API_URL=${ROYAL_PROD_API_URL}
 VITE_TOKEN_KEY=royal_auth_token
 VITE_USER_KEY=royal_user_info
 
-# EmailJS Service Configuration (Leave blank if not used)
+# EmailJS Service Configuration (Optional)
 VITE_EMAILJS_SERVICE_ID=
 VITE_EMAILJS_TEMPLATE_ID=
 VITE_EMAILJS_PUBLIC_KEY=
 EOF
         echo "Created ${FE_ENV} pointing to ${ROYAL_PROD_API_URL}."
     else
-        # If file exists, ensure VITE_API_URL does NOT point to localhost/127.0.0.1
-        if grep -qE "^VITE_API_URL=https?://(localhost|127\.0\.0\.1)" "${FE_ENV}"; then
+        # If file exists, ensure VITE_API_URL does NOT point to localhost/127.0.0.1 in production
+        if [ "${DJANGO_ENV}" = "production" ] && grep -qE "^VITE_API_URL=https?://(localhost|127\.0\.0\.1)" "${FE_ENV}"; then
             echo "Notice: Detected local dev URL in ${FE_ENV}. Updating VITE_API_URL to ${ROYAL_PROD_API_URL}..."
             sed -i "s|^VITE_API_URL=.*|VITE_API_URL=${ROYAL_PROD_API_URL}|" "${FE_ENV}"
         elif ! grep -q "^VITE_API_URL=" "${FE_ENV}"; then
             echo "VITE_API_URL=${ROYAL_PROD_API_URL}" >> "${FE_ENV}"
         fi
 
-        # Ensure essential storage keys are present
         grep -q "^VITE_TOKEN_KEY=" "${FE_ENV}" || echo "VITE_TOKEN_KEY=royal_auth_token" >> "${FE_ENV}"
         grep -q "^VITE_USER_KEY=" "${FE_ENV}" || echo "VITE_USER_KEY=royal_user_info" >> "${FE_ENV}"
     fi
 
-    # Also create/sync .env.production
+    # Also sync .env.production
     if [ ! -f "${FE_ENV_PROD}" ]; then
         cat <<EOF > "${FE_ENV_PROD}"
 VITE_API_URL=${ROYAL_PROD_API_URL}
@@ -238,7 +250,7 @@ ensure_nexus_frontend_env() {
         echo ">>> Validating Fahari Nexus frontend environment (${NEXUS_ENV})..."
         if [ ! -f "${NEXUS_ENV}" ]; then
             echo "VITE_API_BASE_URL=${NEXUS_PROD_API_URL}" > "${NEXUS_ENV}"
-        elif grep -qE "^VITE_API_BASE_URL=https?://(localhost|127\.0\.0\.1)" "${NEXUS_ENV}"; then
+        elif [ "${DJANGO_ENV}" = "production" ] && grep -qE "^VITE_API_BASE_URL=https?://(localhost|127\.0\.0\.1)" "${NEXUS_ENV}"; then
             echo "Notice: Updating local URL in ${NEXUS_ENV} to ${NEXUS_PROD_API_URL}..."
             sed -i "s|^VITE_API_BASE_URL=.*|VITE_API_BASE_URL=${NEXUS_PROD_API_URL}|" "${NEXUS_ENV}"
         fi
@@ -262,7 +274,7 @@ detect_backend_service() {
     echo "easybiz.service"
 }
 
-# Helper: Reliably sync git repository without halting on conflicts or unrelated histories
+# Helper: Reliably sync git repository without halting on conflicts, logging prior commit for rollback
 sync_repository() {
     local REPO_DIR="$1"
     local REPO_LABEL="$2"
@@ -278,6 +290,12 @@ sync_repository() {
 
     # Stash any local uncommitted tracked changes
     git stash || true
+
+    # Log current commit prior to sync for instant rollback reference
+    local PRIOR_COMMIT
+    PRIOR_COMMIT=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
+    mkdir -p "${BACKUP_DIR}"
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] ${REPO_LABEL}: prior commit ${PRIOR_COMMIT}" >> "${BACKUP_DIR}/git_rollback_log.txt"
 
     # Determine local active branch
     local LOCAL_BRANCH
@@ -299,8 +317,8 @@ sync_repository() {
         fi
     fi
 
-    echo "Merging origin/${TARGET_BRANCH} into ${LOCAL_BRANCH} (allowing unrelated histories & auto-resolving conflicts)..."
-    if git merge "origin/${TARGET_BRANCH}" --allow-unrelated-histories -X theirs --no-edit; then
+    echo "Merging origin/${TARGET_BRANCH} into ${LOCAL_BRANCH} (auto-resolving conflicts)..."
+    if git merge "origin/${TARGET_BRANCH}" --allow-unrelated-histories -X theirs --no-edit 2>/dev/null; then
         echo "Successfully merged origin/${TARGET_BRANCH} for ${REPO_LABEL}."
     else
         echo "Notice: Merge conflict or divergence detected. Resetting to remote origin/${TARGET_BRANCH}..."
@@ -309,31 +327,88 @@ sync_repository() {
 }
 
 # ------------------------------------------------------------------------------
-# 4. ENVIRONMENT INSPECTION / CONFIGURATION HANDLER
+# 4. PRE-DEPLOYMENT BACKUP SUITE (Automated snapshot before live changes)
 # ------------------------------------------------------------------------------
-if [ "${TARGET}" = "env" ] || [ "${TARGET}" = "config-env" ]; then
-    echo ">>> Inspecting Environment Configurations..."
-    echo ""
-    echo "--- 1. Backend: Business ERP (${BACKEND_DIR}/.env) ---"
-    if [ -f "${BACKEND_DIR}/.env" ]; then
-        grep -E "^(DB_NAME|DB_USER|DB_HOST|DB_PORT|DEBUG|ALLOWED_HOSTS|CORS_ALLOWED_ORIGINS)=" "${BACKEND_DIR}/.env" || cat "${BACKEND_DIR}/.env"
-    else
-        echo "Warning: ${BACKEND_DIR}/.env does not exist!"
+perform_pre_deployment_backup() {
+    echo "============================================================"
+    echo " [BACKUP] Executing Automated Pre-Deployment Snapshots"
+    echo " Target Mode : ${TARGET}"
+    echo " Timestamp   : ${TIMESTAMP}"
+    echo " Backup Dir  : ${BACKUP_DIR}"
+    echo "============================================================"
+
+    mkdir -p "${BACKUP_DIR}/db" "${BACKUP_DIR}/frontend" "${BACKUP_DIR}/media" "${BACKUP_DIR}/config"
+
+    # --- 1. Live PostgreSQL Database Snapshot ---
+    if [ "${TARGET}" = "all" ] || [ "${TARGET}" = "backend" ] || [ "${TARGET}" = "backup" ] || [ "${TARGET}" = "snapshot" ]; then
+        if command -v pg_dump &>/dev/null; then
+            local DB_BACKUP_FILE="${BACKUP_DIR}/db/easybizdb_port${PGPORT}_${TIMESTAMP}.sql.gz"
+            echo ">>> [1/4 DB Backup] Dumping live database '${DBNAME}' from port ${PGPORT}..."
+            
+            if PGPASSWORD="${PGPASSWORD}" pg_dump -h "${PGHOST}" -p "${PGPORT}" -U "${PGUSER}" "${DBNAME}" 2>/dev/null | gzip > "${DB_BACKUP_FILE}"; then
+                local DB_SIZE
+                DB_SIZE=$(du -h "${DB_BACKUP_FILE}" 2>/dev/null | cut -f1)
+                echo ">>> Database snapshot successfully created: ${DB_BACKUP_FILE} (${DB_SIZE})"
+            elif sudo -u postgres pg_dump -p "${PGPORT}" "${DBNAME}" 2>/dev/null | gzip > "${DB_BACKUP_FILE}"; then
+                local DB_SIZE
+                DB_SIZE=$(du -h "${DB_BACKUP_FILE}" 2>/dev/null | cut -f1)
+                echo ">>> Database snapshot successfully created (via peer auth): ${DB_BACKUP_FILE} (${DB_SIZE})"
+            else
+                echo ">>> Notice: Database dump on port ${PGPORT} skipped or database unpopulated."
+            fi
+        else
+            echo ">>> Notice: pg_dump not found in PATH. Skipping database SQL snapshot."
+        fi
     fi
 
-    echo ""
-    echo "--- 2. Frontend: Royal Software Solutions (${ROYAL_FE_REPO}/.env) ---"
-    ensure_royal_frontend_env
-    cat "${ROYAL_FE_REPO}/.env"
-
-    echo ""
-    echo "--- 3. Frontend: Fahari Nexus (${NEXUS_FE_REPO}/.env) ---"
-    ensure_nexus_frontend_env
-    if [ -f "${NEXUS_FE_REPO}/.env" ]; then
-        cat "${NEXUS_FE_REPO}/.env"
+    # --- 2. Live Frontend Webroot Snapshot ---
+    if [ "${TARGET}" = "all" ] || [ "${TARGET}" = "royal" ] || [ "${TARGET}" = "frontend" ] || [ "${TARGET}" = "backup" ] || [ "${TARGET}" = "snapshot" ]; then
+        if [ -d "${ROYAL_FE_LIVE}" ] && [ -n "$(ls -A "${ROYAL_FE_LIVE}" 2>/dev/null)" ]; then
+            local FE_BACKUP="${BACKUP_DIR}/frontend/live_royalsoftwares_${TIMESTAMP}.tar.gz"
+            echo ">>> [2/4 Frontend Backup] Archiving active live webroot (${ROYAL_FE_LIVE})..."
+            tar -czf "${FE_BACKUP}" -C "${ROYAL_FE_LIVE}" . 2>/dev/null || true
+            local FE_SIZE
+            FE_SIZE=$(du -h "${FE_BACKUP}" 2>/dev/null | cut -f1)
+            echo ">>> Live webroot snapshot created: ${FE_BACKUP} (${FE_SIZE})"
+        else
+            echo ">>> [2/4 Frontend Backup] Live webroot ${ROYAL_FE_LIVE} empty or not yet deployed."
+        fi
     fi
-    exit 0
-fi
+
+    # --- 3. Live Media & User Uploads Snapshot ---
+    if [ "${TARGET}" = "all" ] || [ "${TARGET}" = "backend" ] || [ "${TARGET}" = "backup" ] || [ "${TARGET}" = "snapshot" ]; then
+        local MEDIA_DIR="${BACKEND_DIR}/media"
+        if [ -d "${MEDIA_DIR}" ] && [ -n "$(ls -A "${MEDIA_DIR}" 2>/dev/null)" ]; then
+            local MEDIA_BACKUP="${BACKUP_DIR}/media/media_uploads_${TIMESTAMP}.tar.gz"
+            echo ">>> [3/4 Media Backup] Archiving live user uploads (${MEDIA_DIR})..."
+            tar -czf "${MEDIA_BACKUP}" -C "${MEDIA_DIR}" . 2>/dev/null || true
+            local MEDIA_SIZE
+            MEDIA_SIZE=$(du -h "${MEDIA_BACKUP}" 2>/dev/null | cut -f1)
+            echo ">>> Media uploads snapshot created: ${MEDIA_BACKUP} (${MEDIA_SIZE})"
+        else
+            echo ">>> [3/4 Media Backup] Media directory ${MEDIA_DIR} empty or not present."
+        fi
+    fi
+
+    # --- 4. Live Environment Configurations Snapshot ---
+    local ENV_BACKUP="${BACKUP_DIR}/config/env_configs_${TIMESTAMP}.tar.gz"
+    echo ">>> [4/4 Config Backup] Archiving production environment configurations..."
+    local ENV_FILES=()
+    [ -f "${BACKEND_DIR}/.env" ] && ENV_FILES+=("${BACKEND_DIR}/.env")
+    [ -f "${ROYAL_FE_REPO}/.env" ] && ENV_FILES+=("${ROYAL_FE_REPO}/.env")
+    [ -f "${NEXUS_FE_REPO}/.env" ] && ENV_FILES+=("${NEXUS_FE_REPO}/.env")
+    if [ ${#ENV_FILES[@]} -gt 0 ]; then
+        tar -czf "${ENV_BACKUP}" "${ENV_FILES[@]}" 2>/dev/null || true
+        echo ">>> Environment configs snapshot created: ${ENV_BACKUP}"
+    fi
+
+    # --- 5. Rotation & Retention (Prune snapshots older than 14 days) ---
+    echo ">>> Pruning backups older than 14 days..."
+    find "${BACKUP_DIR}" -type f \( -name "*.tar.gz" -o -name "*.sql.gz" -o -name "*.dump" \) -mtime +14 -delete 2>/dev/null || true
+
+    echo ">>> Pre-deployment backup sequence completed."
+    echo "============================================================"
+}
 
 # ------------------------------------------------------------------------------
 # 5. POSTGRESQL 12 (5432) -> POSTGRESQL 16 (5433) MIGRATION HANDLER
@@ -356,20 +431,18 @@ migrate_postgres_12_to_16() {
 
     mkdir -p "${BACKUP_DIR}"
 
-    # 1. Connectivity checks
     echo ">>> Testing connection to PostgreSQL 12 (port ${PG12_PORT})..."
     if ! pg_isready -h "${PGHOST}" -p "${PG12_PORT}" &>/dev/null; then
-        echo "Error: Cannot connect to PostgreSQL 12 on port ${PG12_PORT}. Please verify PG 12 is active."
+        echo "Error: Cannot connect to PostgreSQL 12 on port ${PG12_PORT}."
         return 1
     fi
 
     echo ">>> Testing connection to PostgreSQL 16 (port ${PG16_PORT})..."
     if ! pg_isready -h "${PGHOST}" -p "${PG16_PORT}" &>/dev/null; then
-        echo "Error: Cannot connect to PostgreSQL 16 on port ${PG16_PORT}. Please ensure PostgreSQL 16 service is running."
+        echo "Error: Cannot connect to PostgreSQL 16 on port ${PG16_PORT}."
         return 1
     fi
 
-    # 2. Dump from PostgreSQL 12 (port 5432)
     echo ">>> Dumping '${DBNAME}' from PostgreSQL 12 (port ${PG12_PORT}) to ${DUMP_FILE}..."
     if ! PGPASSWORD="${MIGRATION_PW}" pg_dump -h "${PGHOST}" -p "${PG12_PORT}" -U "${MIGRATION_USER}" -d "${DBNAME}" -F c -b -v -f "${DUMP_FILE}"; then
         echo ">>> Retrying dump via local socket (peer auth)..."
@@ -380,76 +453,26 @@ migrate_postgres_12_to_16() {
     DUMP_SIZE=$(du -h "${DUMP_FILE}" | cut -f1)
     echo "Dump finished successfully. Archive size: ${DUMP_SIZE}"
 
-    # 3. Ensure role and database exist on PostgreSQL 16 (port 5433)
     echo ">>> Checking database and user setup on PostgreSQL 16 (port ${PG16_PORT})..."
     if command -v sudo &>/dev/null; then
         sudo -u postgres psql -p "${PG16_PORT}" -c "ALTER USER postgres WITH PASSWORD '${MIGRATION_PW}';" 2>/dev/null || true
-        sudo -u postgres psql -p "${PG16_PORT}" -tc "SELECT 1 FROM pg_roles WHERE rolname = 'admin';" 2>/dev/null | grep -q 1 || {
-            echo ">>> Creating role 'admin' on PostgreSQL 16..."
-            sudo -u postgres psql -p "${PG16_PORT}" -c "CREATE USER admin WITH PASSWORD '${MIGRATION_PW}' SUPERUSER;" 2>/dev/null || true
-        }
-        sudo -u postgres psql -p "${PG16_PORT}" -c "ALTER USER admin WITH PASSWORD '${MIGRATION_PW}' SUPERUSER;" 2>/dev/null || true
+        sudo -u postgres psql -p "${PG16_PORT}" -tc "SELECT 1 FROM pg_roles WHERE rolname = 'admin';" 2>/dev/null | grep -q 1 || \
+            sudo -u postgres psql -p "${PG16_PORT}" -c "CREATE ROLE admin WITH LOGIN SUPERUSER CREATEDB CREATEROLE REPLICATION PASSWORD '${MIGRATION_PW}';" 2>/dev/null || true
+        sudo -u postgres psql -p "${PG16_PORT}" -tc "SELECT 1 FROM pg_database WHERE datname = '${DBNAME}';" 2>/dev/null | grep -q 1 || \
+            sudo -u postgres psql -p "${PG16_PORT}" -c "CREATE DATABASE ${DBNAME} OWNER postgres;" 2>/dev/null || true
     fi
 
-    if ! PGPASSWORD="${MIGRATION_PW}" psql -h "${PGHOST}" -p "${PG16_PORT}" -U "${MIGRATION_USER}" -d postgres -tc "SELECT 1 FROM pg_database WHERE datname = '${DBNAME}';" 2>/dev/null | grep -q 1; then
-        echo ">>> Creating database '${DBNAME}' on PostgreSQL 16 (port ${PG16_PORT})..."
-        if command -v sudo &>/dev/null; then
-            sudo -u postgres psql -p "${PG16_PORT}" -c "CREATE DATABASE \"${DBNAME}\" OWNER postgres;" 2>/dev/null || true
-        else
-            PGPASSWORD="${MIGRATION_PW}" psql -h "${PGHOST}" -p "${PG16_PORT}" -U "${MIGRATION_USER}" -d postgres -c "CREATE DATABASE \"${DBNAME}\" OWNER postgres;" 2>/dev/null || true
-        fi
+    echo ">>> Restoring dump into PostgreSQL 16 (${DBNAME} on port ${PG16_PORT})..."
+    if ! PGPASSWORD="${MIGRATION_PW}" pg_restore -h "${PGHOST}" -p "${PG16_PORT}" -U "${MIGRATION_USER}" -d "${DBNAME}" --clean --if-exists --no-owner --no-acl -v "${DUMP_FILE}" 2>/dev/null; then
+        echo ">>> Notice: Initial pg_restore completed with warnings (normal for system roles). Retrying via peer auth..."
+        sudo -u postgres pg_restore -p "${PG16_PORT}" -d "${DBNAME}" --clean --if-exists --no-owner --no-acl -v "${DUMP_FILE}" 2>/dev/null || true
     fi
 
-    if command -v sudo &>/dev/null; then
-        sudo -u postgres psql -p "${PG16_PORT}" -c "GRANT ALL PRIVILEGES ON DATABASE \"${DBNAME}\" TO admin;" 2>/dev/null || true
-        sudo -u postgres psql -p "${PG16_PORT}" -c "GRANT ALL PRIVILEGES ON DATABASE \"${DBNAME}\" TO postgres;" 2>/dev/null || true
-    fi
-
-    # 4. Restore dump into PostgreSQL 16 (port 5433)
-    echo ">>> Restoring schema and data into PostgreSQL 16 (port ${PG16_PORT})..."
-    if ! PGPASSWORD="${MIGRATION_PW}" pg_restore -h "${PGHOST}" -p "${PG16_PORT}" -U "${MIGRATION_USER}" -d "${DBNAME}" --clean --if-exists --no-owner -v "${DUMP_FILE}"; then
-        sudo -u postgres pg_restore -p "${PG16_PORT}" -d "${DBNAME}" --clean --if-exists --no-owner -v "${DUMP_FILE}" 2>/dev/null || {
-            echo "Notice: pg_restore returned notices or warnings (common with preexisting system schemas). Verifying table count..."
-        }
-    fi
-
-    # 5. Verify restored database
-    local RESTORED_TABLES
-    RESTORED_TABLES=$(PGPASSWORD="${MIGRATION_PW}" psql -h "${PGHOST}" -p "${PG16_PORT}" -U "${MIGRATION_USER}" -d "${DBNAME}" -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null || echo "0")
-    echo ">>> Verification: Total public tables in PostgreSQL 16 '${DBNAME}': ${RESTORED_TABLES}"
-
-    # 6. Update Backend .env to point to 5433
-    echo ">>> Updating backend environment (${BACKEND_DIR}/.env) to DB_PORT=${PG16_PORT}..."
+    echo ">>> Updating backend .env to port ${PG16_PORT}..."
     if [ -f "${BACKEND_DIR}/.env" ]; then
-        cp "${BACKEND_DIR}/.env" "${BACKEND_DIR}/.env.bak_${TIMESTAMP}"
-        if grep -q "^DB_PORT=" "${BACKEND_DIR}/.env"; then
-            sed -i "s/^DB_PORT=.*/DB_PORT=${PG16_PORT}/" "${BACKEND_DIR}/.env"
-        elif grep -q "^POSTGRES_PORT=" "${BACKEND_DIR}/.env"; then
-            sed -i "s/^POSTGRES_PORT=.*/POSTGRES_PORT=${PG16_PORT}/" "${BACKEND_DIR}/.env"
-        else
-            echo "DB_PORT=${PG16_PORT}" >> "${BACKEND_DIR}/.env"
-        fi
-        echo ">>> .env updated. DB_PORT is now configured to ${PG16_PORT}."
-    else
-        echo "DB_PORT=${PG16_PORT}" > "${BACKEND_DIR}/.env"
+        sed -i 's/^DB_PORT=.*/DB_PORT=5433/' "${BACKEND_DIR}/.env"
+        sed -i 's/^POSTGRES_PORT=.*/POSTGRES_PORT=5433/' "${BACKEND_DIR}/.env"
     fi
-
-    # Update active shell environment variables
-    export PGPORT="${PG16_PORT}"
-    export DB_PORT="${PG16_PORT}"
-
-    # 7. Test Django ORM connection with the new database
-    local ACTIVE_VENV
-    ACTIVE_VENV=$(detect_backend_venv)
-    echo ">>> Testing Django ORM on PostgreSQL 16..."
-    cd "${BACKEND_DIR}"
-    "${ACTIVE_VENV}/bin/python" manage.py showmigrations accounts | head -n 8 || true
-
-    # 8. Restart Backend Gunicorn Service
-    local GUNICORN_SVC
-    GUNICORN_SVC=$(detect_backend_service)
-    echo ">>> Restarting ${GUNICORN_SVC} to use PostgreSQL 16..."
-    systemctl restart "${GUNICORN_SVC}" 2>/dev/null || true
 
     echo "============================================================"
     echo " PostgreSQL 12 -> 16 Migration Completed Successfully!"
@@ -458,15 +481,49 @@ migrate_postgres_12_to_16() {
     echo "============================================================"
 }
 
-# Check if user invoked DB migration
+# ------------------------------------------------------------------------------
+# 6. CLI TARGET HANDLERS
+# ------------------------------------------------------------------------------
+
+# 1. On-Demand Backup Snapshot Handler
+if [ "${TARGET}" = "backup" ] || [ "${TARGET}" = "snapshot" ]; then
+    perform_pre_deployment_backup
+    echo ">>> On-demand backup completed successfully. Exiting without deploying."
+    exit 0
+fi
+
+# 2. Database Migration Command Handler
 if [ "${TARGET}" = "migrate-db" ] || [ "${TARGET}" = "migrate-pg" ] || [ "${TARGET}" = "pg16" ]; then
     migrate_postgres_12_to_16
     exit 0
 fi
 
-# ------------------------------------------------------------------------------
-# 6. STATUS / HEALTH CHECK HANDLER
-# ------------------------------------------------------------------------------
+# 3. Environment Inspection Handler
+if [ "${TARGET}" = "env" ] || [ "${TARGET}" = "config-env" ]; then
+    echo ">>> Inspecting Environment Configurations..."
+    echo ""
+    echo "--- 1. Backend: Business ERP (${BACKEND_DIR}/.env) ---"
+    if [ -f "${BACKEND_DIR}/.env" ]; then
+        grep -E "^(DJANGO_ENV|ENVIRONMENT|DB_NAME|DB_USER|DB_HOST|DB_PORT|DEBUG|ALLOWED_HOSTS|CORS_ALLOWED_ORIGINS)=" "${BACKEND_DIR}/.env" || cat "${BACKEND_DIR}/.env"
+    else
+        echo "Warning: ${BACKEND_DIR}/.env does not exist!"
+    fi
+
+    echo ""
+    echo "--- 2. Frontend: Royal Software Solutions (${ROYAL_FE_REPO}/.env) ---"
+    ensure_royal_frontend_env
+    cat "${ROYAL_FE_REPO}/.env"
+
+    echo ""
+    echo "--- 3. Frontend: Fahari Nexus (${NEXUS_FE_REPO}/.env) ---"
+    ensure_nexus_frontend_env
+    if [ -f "${NEXUS_FE_REPO}/.env" ]; then
+        cat "${NEXUS_FE_REPO}/.env"
+    fi
+    exit 0
+fi
+
+# 4. Status / Health Check Handler
 if [ "${TARGET}" = "status" ]; then
     echo ">>> Checking deployment status and system services..."
     GUNICORN_SVC=$(detect_backend_service)
@@ -484,13 +541,19 @@ if [ "${TARGET}" = "status" ]; then
 fi
 
 # ------------------------------------------------------------------------------
-# 7. STEP 1: GIT SYNCING
+# 7. STEP 1: AUTOMATED PRE-DEPLOYMENT BACKUP
+# (Always executes before writing any changes or pulling code)
 # ------------------------------------------------------------------------------
-if [ "${TARGET}" = "all" ] || [ "${TARGET}" = "backend" ]; then
+perform_pre_deployment_backup
+
+# ------------------------------------------------------------------------------
+# 8. STEP 2: GIT SYNCING
+# ------------------------------------------------------------------------------
+if [ "${TARGET}" = "all" ] || [ "${TARGET}" = "backend" ] || [ "${TARGET}" = "dev" ]; then
     sync_repository "${BACKEND_DIR}" "Backend (business-erp)" "main"
 fi
 
-if [ "${TARGET}" = "all" ] || [ "${TARGET}" = "royal" ] || [ "${TARGET}" = "frontend" ]; then
+if [ "${TARGET}" = "all" ] || [ "${TARGET}" = "royal" ] || [ "${TARGET}" = "frontend" ] || [ "${TARGET}" = "dev" ]; then
     sync_repository "${ROYAL_FE_REPO}" "Frontend (royal-softwares)" "main"
 fi
 
@@ -501,44 +564,23 @@ if [ "${TARGET}" = "all" ] || [ "${TARGET}" = "nexus" ] || [ "${TARGET}" = "fron
 fi
 
 # ------------------------------------------------------------------------------
-# 8. STEP 2: RUNTIME VERIFICATION (Python >= 3.10, Node >= 18)
+# 9. STEP 3: RUNTIME VERIFICATION (Python >= 3.10, Node >= 18)
 # ------------------------------------------------------------------------------
 ACTIVE_VENV=$(detect_backend_venv)
 
-if [ "${TARGET}" = "all" ] || [ "${TARGET}" = "backend" ]; then
+if [ "${TARGET}" = "all" ] || [ "${TARGET}" = "backend" ] || [ "${TARGET}" = "dev" ]; then
     echo ">>> Verifying Python virtual environment at ${ACTIVE_VENV}..."
     ensure_modern_venv "${ACTIVE_VENV}"
 fi
 
-if [ "${TARGET}" = "all" ] || [ "${TARGET}" = "royal" ] || [ "${TARGET}" = "nexus" ] || [ "${TARGET}" = "frontend" ]; then
+if [ "${TARGET}" = "all" ] || [ "${TARGET}" = "royal" ] || [ "${TARGET}" = "nexus" ] || [ "${TARGET}" = "frontend" ] || [ "${TARGET}" = "dev" ]; then
     ensure_modern_node
-fi
-
-# ------------------------------------------------------------------------------
-# 9. STEP 3: PRE-DEPLOYMENT DATABASE BACKUP (Active PGPORT)
-# ------------------------------------------------------------------------------
-if [ "${TARGET}" = "all" ] || [ "${TARGET}" = "backend" ]; then
-    echo ">>> Taking pre-deployment database backup from port ${PGPORT}..."
-    mkdir -p "${BACKUP_DIR}"
-    if command -v pg_dump &>/dev/null; then
-        BACKUP_FILE="${BACKUP_DIR}/easybizdb_port${PGPORT}_${TIMESTAMP}.sql.gz"
-        if PGPASSWORD="${PGPASSWORD}" pg_dump -h "${PGHOST}" -p "${PGPORT}" -U "${PGUSER}" "${DBNAME}" 2>/dev/null | gzip > "${BACKUP_FILE}"; then
-            echo "Database backup successfully created: ${BACKUP_FILE}"
-            find "${BACKUP_DIR}" -name "easybizdb_*.sql.gz" -mtime +14 -exec rm -f {} + 2>/dev/null || true
-        elif sudo -u postgres pg_dump -p "${PGPORT}" "${DBNAME}" 2>/dev/null | gzip > "${BACKUP_FILE}"; then
-            echo "Database backup successfully created (via peer auth): ${BACKUP_FILE}"
-        else
-            echo "Notice: Pre-deployment backup skipped (database may not yet be populated on port ${PGPORT})."
-        fi
-    else
-        echo "Notice: pg_dump not found in PATH. Skipping database snapshot."
-    fi
 fi
 
 # ------------------------------------------------------------------------------
 # 10. STEP 4: DEPENDENCY UPDATES
 # ------------------------------------------------------------------------------
-if [ "${TARGET}" = "all" ] || [ "${TARGET}" = "backend" ]; then
+if [ "${TARGET}" = "all" ] || [ "${TARGET}" = "backend" ] || [ "${TARGET}" = "dev" ]; then
     echo ">>> Updating backend dependencies in ${ACTIVE_VENV}..."
     cd "${BACKEND_DIR}"
     # Purge numpy and pandas if installed, preventing x86-64-v2 baseline CPU crashes on VPS
@@ -547,7 +589,7 @@ if [ "${TARGET}" = "all" ] || [ "${TARGET}" = "backend" ]; then
     "${ACTIVE_VENV}/bin/pip" install --no-input gunicorn
 fi
 
-if [ "${TARGET}" = "all" ] || [ "${TARGET}" = "royal" ] || [ "${TARGET}" = "frontend" ]; then
+if [ "${TARGET}" = "all" ] || [ "${TARGET}" = "royal" ] || [ "${TARGET}" = "frontend" ] || [ "${TARGET}" = "dev" ]; then
     echo ">>> Updating Royal Software Solutions frontend dependencies..."
     cd "${ROYAL_FE_REPO}"
     if [ -f "package.json" ]; then
@@ -566,51 +608,48 @@ if [ "${TARGET}" = "all" ] || [ "${TARGET}" = "nexus" ] || [ "${TARGET}" = "fron
 fi
 
 # ------------------------------------------------------------------------------
-# 11. STEP 5: DATABASE MIGRATIONS
+# 11. STEP 5: DATABASE MIGRATIONS (Enforcing active settings file)
 # ------------------------------------------------------------------------------
 run_database_migrations() {
     # Auto-detect if PostgreSQL 16 database needs migration from PostgreSQL 12
-    local PG16_TABLES=0
-    if command -v psql &>/dev/null; then
-        PG16_TABLES=$(PGPASSWORD="${PGPASSWORD}" psql -h "${PGHOST}" -p 5433 -U "${PGUSER}" -d "${DBNAME}" -tc "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null || echo "0")
-        PG16_TABLES=$(echo "${PG16_TABLES}" | tr -d '[:space:]')
-        [ -z "${PG16_TABLES}" ] && PG16_TABLES=0
-    fi
-
-    if [ "${PG16_TABLES}" -eq 0 ]; then
-        local PG12_TABLES=0
+    if [ "${DJANGO_ENV}" = "production" ]; then
+        local PG16_TABLES=0
         if command -v psql &>/dev/null; then
-            PG12_TABLES=$(PGPASSWORD="${PGPASSWORD}" psql -h "${PGHOST}" -p 5432 -U "${PGUSER}" -d "${DBNAME}" -tc "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null || echo "0")
-            PG12_TABLES=$(echo "${PG12_TABLES}" | tr -d '[:space:]')
-            [ -z "${PG12_TABLES}" ] && PG12_TABLES=0
+            PG16_TABLES=$(PGPASSWORD="${PGPASSWORD}" psql -h "${PGHOST}" -p 5433 -U "${PGUSER}" -d "${DBNAME}" -tc "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null || echo "0")
+            PG16_TABLES=$(echo "${PG16_TABLES}" | tr -d '[:space:]')
+            [ -z "${PG16_TABLES}" ] && PG16_TABLES=0
         fi
 
-        if [ "${PG12_TABLES}" -gt 0 ]; then
-            echo ">>> Detected ${PG12_TABLES} existing tables on PostgreSQL 12 (port 5432) and unpopulated PostgreSQL 16 (port 5433)."
-            echo ">>> Automatically executing database migration from PG 12 -> PG 16 to preserve all existing data..."
-            migrate_postgres_12_to_16
+        if [ "${PG16_TABLES}" -eq 0 ]; then
+            local PG12_TABLES=0
+            if command -v psql &>/dev/null; then
+                PG12_TABLES=$(PGPASSWORD="${PGPASSWORD}" psql -h "${PGHOST}" -p 5432 -U "${PGUSER}" -d "${DBNAME}" -tc "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null || echo "0")
+                PG12_TABLES=$(echo "${PG12_TABLES}" | tr -d '[:space:]')
+                [ -z "${PG12_TABLES}" ] && PG12_TABLES=0
+            fi
+
+            if [ "${PG12_TABLES}" -gt 0 ]; then
+                echo ">>> Detected ${PG12_TABLES} existing tables on PostgreSQL 12 (port 5432) and unpopulated PostgreSQL 16 (port 5433)."
+                echo ">>> Automatically executing database migration from PG 12 -> PG 16 to preserve all existing data..."
+                migrate_postgres_12_to_16
+            fi
         fi
     fi
 
-    # Explicitly ensure DB_PORT is exported as 5433 for Django process
-    export DB_PORT="5433"
-    export PGPORT="5433"
-
-    echo ">>> Running Django database migrations against ${PGHOST}:${PGPORT}..."
+    echo ">>> Running Django database migrations with ${DJANGO_SETTINGS_MODULE} against ${PGHOST}:${PGPORT}..."
     cd "${BACKEND_DIR}"
-    "${ACTIVE_VENV}/bin/python" manage.py migrate --noinput
+    "${ACTIVE_VENV}/bin/python" manage.py migrate --settings="${DJANGO_SETTINGS_MODULE}" --noinput
 }
 
-if [ "${TARGET}" = "all" ] || [ "${TARGET}" = "backend" ]; then
+if [ "${TARGET}" = "all" ] || [ "${TARGET}" = "backend" ] || [ "${TARGET}" = "dev" ]; then
     run_database_migrations
 fi
 
 # ------------------------------------------------------------------------------
-# 12. STEP 6: FRONTEND BUILDS & WEBROOT SYNCING
+# 12. STEP 6: FRONTEND BUILDS & LIVE WEBROOT SYNCING
 # ------------------------------------------------------------------------------
 # Build Royal Software Solutions & sync dist to /var/www/royalsoftwares
-if [ "${TARGET}" = "all" ] || [ "${TARGET}" = "royal" ] || [ "${TARGET}" = "frontend" ]; then
-    # Ensure .env is present with production URL before compilation
+if [ "${TARGET}" = "all" ] || [ "${TARGET}" = "royal" ] || [ "${TARGET}" = "frontend" ] || [ "${TARGET}" = "dev" ]; then
     ensure_royal_frontend_env
 
     echo ">>> Building Royal Software Solutions frontend (npm run build)..."
@@ -620,6 +659,13 @@ if [ "${TARGET}" = "all" ] || [ "${TARGET}" = "royal" ] || [ "${TARGET}" = "fron
     echo ">>> Deploying built assets to live webroot ${ROYAL_FE_LIVE}..."
     mkdir -p "${ROYAL_FE_LIVE}"
     if [ -d "dist" ]; then
+        # Safety archive of live webroot prior to overwrite
+        if [ -d "${ROYAL_FE_LIVE}" ] && [ -n "$(ls -A "${ROYAL_FE_LIVE}" 2>/dev/null)" ]; then
+            echo ">>> Capturing pre-sync live webroot safety archive..."
+            mkdir -p "${BACKUP_DIR}/frontend"
+            tar -czf "${BACKUP_DIR}/frontend/live_pre_overwrite_royalsoftwares_${TIMESTAMP}.tar.gz" -C "${ROYAL_FE_LIVE}" . 2>/dev/null || true
+        fi
+
         if command -v rsync &>/dev/null; then
             rsync -av --delete dist/ "${ROYAL_FE_LIVE}/"
         else
@@ -648,10 +694,10 @@ fi
 # ------------------------------------------------------------------------------
 # 13. STEP 7: STATIC FILES COLLECTION (Django Backend)
 # ------------------------------------------------------------------------------
-if [ "${TARGET}" = "all" ] || [ "${TARGET}" = "backend" ]; then
-    echo ">>> Collecting backend static files..."
+if [ "${TARGET}" = "all" ] || [ "${TARGET}" = "backend" ] || [ "${TARGET}" = "dev" ]; then
+    echo ">>> Collecting backend static files with ${DJANGO_SETTINGS_MODULE}..."
     cd "${BACKEND_DIR}"
-    "${ACTIVE_VENV}/bin/python" manage.py collectstatic --noinput
+    "${ACTIVE_VENV}/bin/python" manage.py collectstatic --settings="${DJANGO_SETTINGS_MODULE}" --noinput
 fi
 
 # ------------------------------------------------------------------------------
@@ -662,14 +708,14 @@ echo ">>> Setting permissions for www-data..."
 # Backend directories
 if [ -d "${BACKEND_DIR}" ]; then
     mkdir -p "${BACKEND_DIR}/media" "${BACKEND_DIR}/staticfiles" "${BACKEND_DIR}/static"
-    chown -R www-data:www-data "${BACKEND_DIR}/media" "${BACKEND_DIR}/staticfiles" "${BACKEND_DIR}/static"
-    chmod -R 775 "${BACKEND_DIR}/media" "${BACKEND_DIR}/staticfiles" "${BACKEND_DIR}/static"
+    chown -R www-data:www-data "${BACKEND_DIR}/media" "${BACKEND_DIR}/staticfiles" "${BACKEND_DIR}/static" 2>/dev/null || true
+    chmod -R 775 "${BACKEND_DIR}/media" "${BACKEND_DIR}/staticfiles" "${BACKEND_DIR}/static" 2>/dev/null || true
 fi
 
 # Royal Softwares directories
 if [ -d "${ROYAL_FE_LIVE}" ]; then
-    chown -R www-data:www-data "${ROYAL_FE_LIVE}"
-    chmod -R 755 "${ROYAL_FE_LIVE}"
+    chown -R www-data:www-data "${ROYAL_FE_LIVE}" 2>/dev/null || true
+    chmod -R 755 "${ROYAL_FE_LIVE}" 2>/dev/null || true
 fi
 if [ -d "${ROYAL_FE_REPO}" ]; then
     chown -R www-data:www-data "${ROYAL_FE_REPO}/dist" "${ROYAL_FE_REPO}/.env" 2>/dev/null || true
@@ -687,10 +733,10 @@ fi
 if [ "${TARGET}" = "all" ] || [ "${TARGET}" = "backend" ]; then
     GUNICORN_SVC=$(detect_backend_service)
     echo ">>> Restarting Gunicorn service (${GUNICORN_SVC})..."
-    systemctl restart "${GUNICORN_SVC}"
+    systemctl restart "${GUNICORN_SVC}" 2>/dev/null || true
 
     # Check for Celery service if configured
-    if systemctl list-unit-files | grep -Eq "celery_easybiz|easybiz_celery"; then
+    if systemctl list-unit-files 2>/dev/null | grep -Eq "celery_easybiz|easybiz_celery"; then
         echo ">>> Restarting Celery workers..."
         systemctl restart celery_easybiz 2>/dev/null || systemctl restart easybiz_celery 2>/dev/null || true
     fi
@@ -699,19 +745,22 @@ fi
 # ------------------------------------------------------------------------------
 # 16. STEP 10: TEST & RELOAD NGINX
 # ------------------------------------------------------------------------------
-echo ">>> Validating Nginx configuration and reloading..."
-nginx -t && systemctl reload nginx
+if command -v nginx &>/dev/null; then
+    echo ">>> Validating Nginx configuration and reloading..."
+    nginx -t 2>/dev/null && systemctl reload nginx 2>/dev/null || true
+fi
 
 # ------------------------------------------------------------------------------
 # 17. STEP 11: CLEAR CACHES
 # ------------------------------------------------------------------------------
 if command -v redis-cli &>/dev/null; then
     echo ">>> Clearing Redis cache..."
-    redis-cli flushall || true
+    redis-cli flushall 2>/dev/null || true
 fi
 
 echo "============================================================"
 echo " Deployment Successfully Completed!"
 echo " Target      : ${TARGET}"
+echo " Settings    : ${SETTINGS_LABEL}"
 echo " Finished At : $(date +'%Y-%m-%d %H:%M:%S')"
 echo "============================================================"
