@@ -15,7 +15,6 @@
 #       * Production: Automatically enforces DJANGO_SETTINGS_MODULE="erp.settings_prod",
 #         DJANGO_ENV="production", DB_PORT=5433, and loads .env.production.
 #       * Development / Local: Automatically uses erp.settings_dev (DB_PORT=5432, DEBUG=True).
-#   - Automated PostgreSQL 12 (5432) -> 16 (5433) Migration helper ('./deploy.sh migrate-db')
 #   - Git Syncing with automatic merge conflict resolution and rollback commit logging.
 #   - Vite Builds with automatic production API URL injection.
 #   - Safe webroot deployment with pre-sync live webroot archiving.
@@ -43,7 +42,7 @@ NEXUS_FE_REPO="${ROYAL_BASE_DIR}/fahari-nexus-core"
 BACKUP_DIR="/var/backups/royalsoftwares"
 TIMESTAMP="$(date +'%Y%m%d_%H%M%S')"
 
-# Target selector: all (default), backend, royal, nexus, frontend, backup, migrate-db, env, status, dev
+# Target selector: all (default), backend, royal, nexus, frontend, backup, env, status, dev
 TARGET="${1:-all}"
 
 # Production API URLs
@@ -411,78 +410,7 @@ perform_pre_deployment_backup() {
 }
 
 # ------------------------------------------------------------------------------
-# 5. POSTGRESQL 12 (5432) -> POSTGRESQL 16 (5433) MIGRATION HANDLER
-# ------------------------------------------------------------------------------
-migrate_postgres_12_to_16() {
-    local PG12_PORT=5432
-    local PG16_PORT=5433
-    local DUMP_FILE="${BACKUP_DIR}/migration_pg12_to_pg16_${DBNAME}_${TIMESTAMP}.dump"
-    local MIGRATION_USER="postgres"
-    local MIGRATION_PW="${DB_PASSWORD:-Admin@2025}"
-
-    export PGPASSWORD="${MIGRATION_PW}"
-
-    echo "============================================================"
-    echo " AUTOMATED DATABASE MIGRATION: PG 12 (5432) -> PG 16 (5433)"
-    echo " Database Name : ${DBNAME}"
-    echo " Database User : ${MIGRATION_USER}"
-    echo " Target Host   : ${PGHOST}"
-    echo "============================================================"
-
-    mkdir -p "${BACKUP_DIR}"
-
-    echo ">>> Testing connection to PostgreSQL 12 (port ${PG12_PORT})..."
-    if ! pg_isready -h "${PGHOST}" -p "${PG12_PORT}" &>/dev/null; then
-        echo "Error: Cannot connect to PostgreSQL 12 on port ${PG12_PORT}."
-        return 1
-    fi
-
-    echo ">>> Testing connection to PostgreSQL 16 (port ${PG16_PORT})..."
-    if ! pg_isready -h "${PGHOST}" -p "${PG16_PORT}" &>/dev/null; then
-        echo "Error: Cannot connect to PostgreSQL 16 on port ${PG16_PORT}."
-        return 1
-    fi
-
-    echo ">>> Dumping '${DBNAME}' from PostgreSQL 12 (port ${PG12_PORT}) to ${DUMP_FILE}..."
-    if ! PGPASSWORD="${MIGRATION_PW}" pg_dump -h "${PGHOST}" -p "${PG12_PORT}" -U "${MIGRATION_USER}" -d "${DBNAME}" -F c -b -v -f "${DUMP_FILE}"; then
-        echo ">>> Retrying dump via local socket (peer auth)..."
-        sudo -u postgres pg_dump -p "${PG12_PORT}" -d "${DBNAME}" -F c -b -v -f "${DUMP_FILE}"
-    fi
-
-    local DUMP_SIZE
-    DUMP_SIZE=$(du -h "${DUMP_FILE}" | cut -f1)
-    echo "Dump finished successfully. Archive size: ${DUMP_SIZE}"
-
-    echo ">>> Checking database and user setup on PostgreSQL 16 (port ${PG16_PORT})..."
-    if command -v sudo &>/dev/null; then
-        sudo -u postgres psql -p "${PG16_PORT}" -c "ALTER USER postgres WITH PASSWORD '${MIGRATION_PW}';" 2>/dev/null || true
-        sudo -u postgres psql -p "${PG16_PORT}" -tc "SELECT 1 FROM pg_roles WHERE rolname = 'admin';" 2>/dev/null | grep -q 1 || \
-            sudo -u postgres psql -p "${PG16_PORT}" -c "CREATE ROLE admin WITH LOGIN SUPERUSER CREATEDB CREATEROLE REPLICATION PASSWORD '${MIGRATION_PW}';" 2>/dev/null || true
-        sudo -u postgres psql -p "${PG16_PORT}" -tc "SELECT 1 FROM pg_database WHERE datname = '${DBNAME}';" 2>/dev/null | grep -q 1 || \
-            sudo -u postgres psql -p "${PG16_PORT}" -c "CREATE DATABASE ${DBNAME} OWNER postgres;" 2>/dev/null || true
-    fi
-
-    echo ">>> Restoring dump into PostgreSQL 16 (${DBNAME} on port ${PG16_PORT})..."
-    if ! PGPASSWORD="${MIGRATION_PW}" pg_restore -h "${PGHOST}" -p "${PG16_PORT}" -U "${MIGRATION_USER}" -d "${DBNAME}" --clean --if-exists --no-owner --no-acl -v "${DUMP_FILE}" 2>/dev/null; then
-        echo ">>> Notice: Initial pg_restore completed with warnings (normal for system roles). Retrying via peer auth..."
-        sudo -u postgres pg_restore -p "${PG16_PORT}" -d "${DBNAME}" --clean --if-exists --no-owner --no-acl -v "${DUMP_FILE}" 2>/dev/null || true
-    fi
-
-    echo ">>> Updating backend .env to port ${PG16_PORT}..."
-    if [ -f "${BACKEND_DIR}/.env" ]; then
-        sed -i 's/^DB_PORT=.*/DB_PORT=5433/' "${BACKEND_DIR}/.env"
-        sed -i 's/^POSTGRES_PORT=.*/POSTGRES_PORT=5433/' "${BACKEND_DIR}/.env"
-    fi
-
-    echo "============================================================"
-    echo " PostgreSQL 12 -> 16 Migration Completed Successfully!"
-    echo " Target Host/Port : ${PGHOST}:${PG16_PORT}"
-    echo " Dump Stored At   : ${DUMP_FILE}"
-    echo "============================================================"
-}
-
-# ------------------------------------------------------------------------------
-# 6. CLI TARGET HANDLERS
+# 5. CLI TARGET HANDLERS
 # ------------------------------------------------------------------------------
 
 # 1. On-Demand Backup Snapshot Handler
@@ -492,13 +420,7 @@ if [ "${TARGET}" = "backup" ] || [ "${TARGET}" = "snapshot" ]; then
     exit 0
 fi
 
-# 2. Database Migration Command Handler
-if [ "${TARGET}" = "migrate-db" ] || [ "${TARGET}" = "migrate-pg" ] || [ "${TARGET}" = "pg16" ]; then
-    migrate_postgres_12_to_16
-    exit 0
-fi
-
-# 3. Environment Inspection Handler
+# 2. Environment Inspection Handler
 if [ "${TARGET}" = "env" ] || [ "${TARGET}" = "config-env" ]; then
     echo ">>> Inspecting Environment Configurations..."
     echo ""
@@ -523,7 +445,7 @@ if [ "${TARGET}" = "env" ] || [ "${TARGET}" = "config-env" ]; then
     exit 0
 fi
 
-# 4. Status / Health Check Handler
+# 3. Status / Health Check Handler
 if [ "${TARGET}" = "status" ]; then
     echo ">>> Checking deployment status and system services..."
     GUNICORN_SVC=$(detect_backend_service)
@@ -531,8 +453,7 @@ if [ "${TARGET}" = "status" ]; then
     systemctl status "${GUNICORN_SVC}" --no-pager -l || true
     systemctl status nginx --no-pager -l || true
     echo "--- PostgreSQL Connectivity ---"
-    echo "PostgreSQL 12 (5432): $(pg_isready -p 5432 2>/dev/null || echo 'down')"
-    echo "PostgreSQL 16 (5433): $(pg_isready -p 5433 2>/dev/null || echo 'down')"
+    echo "PostgreSQL (${PGHOST}:${PGPORT}): $(pg_isready -h "${PGHOST}" -p "${PGPORT}" 2>/dev/null || echo 'down')"
     echo "--- Gunicorn Socket Check ---"
     ls -la /run/easybiz/easybiz.sock 2>/dev/null || echo "No socket at /run/easybiz/easybiz.sock"
     echo "--- Nginx Syntax Check ---"
@@ -541,13 +462,13 @@ if [ "${TARGET}" = "status" ]; then
 fi
 
 # ------------------------------------------------------------------------------
-# 7. STEP 1: AUTOMATED PRE-DEPLOYMENT BACKUP
+# 6. STEP 1: AUTOMATED PRE-DEPLOYMENT BACKUP
 # (Always executes before writing any changes or pulling code)
 # ------------------------------------------------------------------------------
 perform_pre_deployment_backup
 
 # ------------------------------------------------------------------------------
-# 8. STEP 2: GIT SYNCING
+# 7. STEP 2: GIT SYNCING
 # ------------------------------------------------------------------------------
 if [ "${TARGET}" = "all" ] || [ "${TARGET}" = "backend" ] || [ "${TARGET}" = "dev" ]; then
     sync_repository "${BACKEND_DIR}" "Backend (business-erp)" "main"
@@ -608,34 +529,9 @@ if [ "${TARGET}" = "all" ] || [ "${TARGET}" = "nexus" ] || [ "${TARGET}" = "fron
 fi
 
 # ------------------------------------------------------------------------------
-# 11. STEP 5: DATABASE MIGRATIONS (Enforcing active settings file)
+# 10. STEP 5: DATABASE MIGRATIONS (Enforcing active settings file)
 # ------------------------------------------------------------------------------
 run_database_migrations() {
-    # Auto-detect if PostgreSQL 16 database needs migration from PostgreSQL 12
-    if [ "${DJANGO_ENV}" = "production" ]; then
-        local PG16_TABLES=0
-        if command -v psql &>/dev/null; then
-            PG16_TABLES=$(PGPASSWORD="${PGPASSWORD}" psql -h "${PGHOST}" -p 5433 -U "${PGUSER}" -d "${DBNAME}" -tc "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null || echo "0")
-            PG16_TABLES=$(echo "${PG16_TABLES}" | tr -d '[:space:]')
-            [ -z "${PG16_TABLES}" ] && PG16_TABLES=0
-        fi
-
-        if [ "${PG16_TABLES}" -eq 0 ]; then
-            local PG12_TABLES=0
-            if command -v psql &>/dev/null; then
-                PG12_TABLES=$(PGPASSWORD="${PGPASSWORD}" psql -h "${PGHOST}" -p 5432 -U "${PGUSER}" -d "${DBNAME}" -tc "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null || echo "0")
-                PG12_TABLES=$(echo "${PG12_TABLES}" | tr -d '[:space:]')
-                [ -z "${PG12_TABLES}" ] && PG12_TABLES=0
-            fi
-
-            if [ "${PG12_TABLES}" -gt 0 ]; then
-                echo ">>> Detected ${PG12_TABLES} existing tables on PostgreSQL 12 (port 5432) and unpopulated PostgreSQL 16 (port 5433)."
-                echo ">>> Automatically executing database migration from PG 12 -> PG 16 to preserve all existing data..."
-                migrate_postgres_12_to_16
-            fi
-        fi
-    fi
-
     echo ">>> Running Django database migrations with ${DJANGO_SETTINGS_MODULE} against ${PGHOST}:${PGPORT}..."
     cd "${BACKEND_DIR}"
     "${ACTIVE_VENV}/bin/python" manage.py migrate --settings="${DJANGO_SETTINGS_MODULE}" --noinput

@@ -668,7 +668,7 @@ const EmailSettings = () => {
                         type="email"
                         value={testEmail}
                         onChange={(e) => setTestEmail(e.target.value)}
-                        placeholder="Enter your email to receive test (e.g. james@example.com)"
+                        placeholder="Enter your email to receive test (e.g. admin@royalsoftwares.co.ke)"
                         style={{
                             flex: 1,
                             padding: '11px 15px',

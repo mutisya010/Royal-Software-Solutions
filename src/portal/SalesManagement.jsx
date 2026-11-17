@@ -39,19 +39,9 @@ const pipelineStages = [
     { id: 'lost', label: 'Deal Lost', color: '#ef4444' }
 ];
 
-
-const dashboardStats = [
-    { label: 'Total Leads', value: '482', trend: '+12%', icon: <Users size={20} />, color: '#6366f1' },
-    { label: 'Active Deals', value: '34', trend: '+5%', icon: <Target size={20} />, color: '#8b5cf6' },
-    { label: 'Won Deals', value: '18', trend: '+2%', icon: <CheckCircle size={20} />, color: '#10b981' },
-    { label: 'Revenue', value: '$124.5k', trend: '+18%', icon: <DollarSign size={20} />, color: '#0ea5e9' },
-];
-
 const SalesManagement = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const view = searchParams.get('view') || 'dashboard';
-
-    const [userRole, setUserRole] = useState('Sales Manager'); // Admin, Sales Manager, Sales Agent
 
     const [sales, setSales] = useState([]);
     const [loading, setLoading] = useState(false);

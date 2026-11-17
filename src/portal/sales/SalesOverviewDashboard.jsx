@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
     TrendingUp,
     Users,
@@ -25,6 +25,7 @@ import {
     BarChart,
     Bar
 } from 'recharts';
+import { apiClient } from '../../services/apiClient';
 import '../shared/portalShared.css';
 
 const SalesOverviewDashboard = ({
@@ -34,6 +35,40 @@ const SalesOverviewDashboard = ({
     rfqs = [],
     onNavigateView
 }) => {
+    // Dynamic user & tenant identification
+    const [currentUser, setCurrentUser] = useState(() => apiClient.auth.getCurrentUser());
+
+    useEffect(() => {
+        let isMounted = true;
+        apiClient.auth.getProfile()
+            .then(profile => {
+                if (isMounted && profile) setCurrentUser(profile);
+            })
+            .catch(() => {});
+        return () => { isMounted = false; };
+    }, []);
+
+    const userDisplayName = useMemo(() => {
+        if (!currentUser) return 'Commercial Leader';
+        return currentUser.first_name ||
+            (currentUser.full_name ? currentUser.full_name.split(' ')[0] : null) ||
+            currentUser.username ||
+            currentUser.name ||
+            'Commercial Leader';
+    }, [currentUser]);
+
+    const userRoleBadge = useMemo(() => {
+        if (!currentUser) return 'Executive Commercial Workspace';
+        if (currentUser.is_superuser) return 'Executive Workspace';
+        const primaryRole = (Array.isArray(currentUser.roles) && currentUser.roles.length > 0)
+            ? currentUser.roles[0]
+            : (currentUser.role || (currentUser.is_staff ? 'Sales Admin' : 'Sales Lead'));
+        return `${primaryRole} Workspace`;
+    }, [currentUser]);
+
+    const companyName = useMemo(() => {
+        return currentUser?.company_name || currentUser?.organization || 'Royal Software Solutions';
+    }, [currentUser]);
     // Pipeline stats calculated from real data
     const stats = useMemo(() => {
         const totalLeads = leads.length;
@@ -121,7 +156,7 @@ const SalesOverviewDashboard = ({
 
     return (
         <div className="portal-page-container animations-fade-in">
-            {/* 1. Executive Welcome Hero (Reference Image 1 & 2) */}
+            {/* 1. Executive Welcome Hero (Dynamic Identification) */}
             <div style={{
                 background: 'linear-gradient(135deg, #16657a 0%, #0b2b35 100%)',
                 color: '#ffffff',
@@ -136,13 +171,13 @@ const SalesOverviewDashboard = ({
             }}>
                 <div>
                     <span style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#99f6e4', fontWeight: 700 }}>
-                        Executive Commercial Workspace
+                        {userRoleBadge}
                     </span>
                     <h1 style={{ fontSize: '1.85rem', fontWeight: 800, margin: '0.35rem 0 0.5rem 0', color: '#ffffff' }}>
-                        Welcome back, James!
+                        Welcome back, {userDisplayName}!
                     </h1>
                     <p style={{ margin: 0, fontSize: '0.92rem', color: '#cbd5e1', maxWidth: '520px', lineHeight: 1.5 }}>
-                        Here is your commercial pipeline momentum, active RFQs, and quotation delivery progress for Royal Software Solutions.
+                        Here is your commercial pipeline momentum, active RFQs, and quotation delivery progress for {companyName}.
                     </p>
                 </div>
 
@@ -312,7 +347,7 @@ const SalesOverviewDashboard = ({
                             <span style={{ fontSize: '0.78rem', color: '#64748b' }}>6-month cumulative commercial progress</span>
                         </div>
                         <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#16657a', background: '#f0fdfa', padding: '4px 8px', borderRadius: 6 }}>
-                            2026 Trend
+                            {new Date().getFullYear()} Trend
                         </span>
                     </div>
 

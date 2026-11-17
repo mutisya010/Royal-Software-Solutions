@@ -57,6 +57,13 @@ const PlannerDashboard = ({ onNavigateView, onOpenCreateTask }) => {
         { label: 'Completed (7 Days)', value: stats.completed_this_week || 0, trendType: 'positive' }
     ], [stats]);
 
+    const currentUser = useMemo(() => apiClient.auth.getCurrentUser(), []);
+    const greetingName = dashData?.user_name ||
+        currentUser?.first_name ||
+        (currentUser?.full_name ? currentUser.full_name.split(' ')[0] : null) ||
+        currentUser?.username ||
+        'Team Member';
+
     if (loading) {
         return (
             <div className="planner-container" style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
@@ -76,7 +83,7 @@ const PlannerDashboard = ({ onNavigateView, onOpenCreateTask }) => {
                         <span>Hybrid Planner · Strategic Workspace</span>
                     </div>
                     <h1 className="planner-hero-title">
-                        Hi, {dashData?.user_name || 'James'}! <br />
+                        Hi, {greetingName}! <br />
                         <span className="planner-hero-subheading">What are your plans for today?</span>
                     </h1>
                     <p className="planner-hero-desc">
