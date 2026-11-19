@@ -10,6 +10,8 @@ import {
     Sliders,
     HelpCircle
 } from 'lucide-react';
+import { canAccessNavItem } from './navigationConfig';
+import { apiClient } from '../services/apiClient';
 
 /**
  * Secondary Contextual Sidebar (Matching the reference design)
@@ -20,7 +22,8 @@ const SecondarySidebar = ({
     activeView,
     isOpen,
     onClose,
-    companyName
+    companyName,
+    user
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
 
@@ -28,22 +31,29 @@ const SecondarySidebar = ({
         return null;
     }
 
+    const currentUser = user || (apiClient?.auth ? apiClient.auth.getCurrentUser() : null);
     const ModuleIcon = module.icon;
     const currentView = activeView || 'dashboard';
 
-    // Filter items if user enters a search term
+    // Filter items if user enters a search term and enforce item-level permissions
     const getFilteredGroups = () => {
         if (!module.groups) return [];
-        if (!searchTerm.trim()) return module.groups;
+        const term = searchTerm.trim().toLowerCase();
 
-        const term = searchTerm.toLowerCase();
         return module.groups
             .map(grp => ({
                 ...grp,
-                items: grp.items.filter(item =>
-                    item.label.toLowerCase().includes(term) ||
-                    item.view.toLowerCase().includes(term)
-                )
+                items: grp.items.filter(item => {
+                    // Check item-level permission
+                    if (!canAccessNavItem(item, currentUser)) {
+                        return false;
+                    }
+                    if (!term) return true;
+                    return (
+                        item.label.toLowerCase().includes(term) ||
+                        item.view.toLowerCase().includes(term)
+                    );
+                })
             }))
             .filter(grp => grp.items.length > 0);
     };

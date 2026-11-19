@@ -355,6 +355,7 @@ const PortalLayout = () => {
                         }
                     }}
                     companyName={company.name}
+                    user={currentUser}
                 />
             )}
 

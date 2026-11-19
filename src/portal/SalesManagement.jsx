@@ -14,13 +14,14 @@ import PipelineBoardPage from './sales/PipelineBoardPage';
 import DealsManagementPage from './sales/DealsManagementPage';
 import SalesRegistryPage from './sales/SalesRegistryPage';
 import ListPageHeader from './shared/ListPageHeader';
+import { canAccessNavItem } from './navigationConfig';
 import {
     Search, Filter, Plus, Users, Building, MonitorSmartphone,
     TrendingUp, DollarSign, Target, Briefcase, ChevronRight,
     MoreVertical, FileText, Download, Mail, Phone, Calendar,
     Clock, CheckCircle, AlertCircle, PieChart as PieChartIcon,
     BarChart, ExternalLink, UserPlus, Zap, MessageSquare,
-    ArrowUpRight, ArrowDownRight, Layout, X, Check
+    ArrowUpRight, ArrowDownRight, Layout, X, Check, ShieldAlert
 } from 'lucide-react';
 import {
     ResponsiveContainer, AreaChart, Area, XAxis, YAxis,
@@ -55,6 +56,31 @@ const SalesManagement = () => {
     const [quotations, setQuotations] = useState([]);
     const [quotationRequests, setQuotationRequests] = useState([]);
     const [activities, setActivities] = useState([]);
+    const [currentUser, setCurrentUser] = useState(() => apiClient.auth.getCurrentUser());
+
+    useEffect(() => {
+        let isMounted = true;
+        apiClient.auth.getProfile()
+            .then(profile => {
+                if (isMounted && profile) setCurrentUser(profile);
+            })
+            .catch(() => {});
+        return () => { isMounted = false; };
+    }, []);
+
+    const canViewCatalogue = canAccessNavItem(
+        {
+            permissions: [
+                'royalsoftwares.view_productservice',
+                'royalsoftwares.add_productservice',
+                'pos.view_product',
+                'pos.add_product',
+                'royalsoftwares.can_manage_pricing'
+            ],
+            roles: ['Admin', 'Sales', 'Finance']
+        },
+        currentUser
+    );
 
     const loadData = async () => {
         setLoading(true);
@@ -215,11 +241,33 @@ const SalesManagement = () => {
             )}
 
             {view === 'catalogue' && (
-                <ProductsServicesCatalogue 
-                    products={products} 
-                    onRefresh={loadData} 
-                    loading={loading} 
-                />
+                canViewCatalogue ? (
+                    <ProductsServicesCatalogue 
+                        products={products} 
+                        onRefresh={loadData} 
+                        loading={loading}
+                        user={currentUser}
+                    />
+                ) : (
+                    <div className="portal-content-card animations-fade-in" style={{ padding: '60px 20px', textAlign: 'center' }}>
+                        <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#fee2e2', color: '#b91c1c', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                            <ShieldAlert size={32} />
+                        </div>
+                        <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', marginBottom: '8px' }}>
+                            Access Restricted
+                        </h3>
+                        <p style={{ maxWidth: '440px', margin: '0 auto 20px', color: '#64748b', fontSize: '14px', lineHeight: 1.5 }}>
+                            You do not have permission to view or manage the Products & Services Catalogue. Please contact your system administrator if you require access.
+                        </p>
+                        <button
+                            type="button"
+                            onClick={() => setSearchParams({ view: 'dashboard' })}
+                            style={{ padding: '10px 22px', borderRadius: 8, background: '#0f172a', color: '#fff', border: 'none', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}
+                        >
+                            Return to Sales Overview
+                        </button>
+                    </div>
+                )
             )}
 
             {view === 'rfqs' && (

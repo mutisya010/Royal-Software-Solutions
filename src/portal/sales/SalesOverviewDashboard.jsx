@@ -26,6 +26,7 @@ import {
     Bar
 } from 'recharts';
 import { apiClient } from '../../services/apiClient';
+import { canAccessNavItem } from '../navigationConfig';
 import '../shared/portalShared.css';
 
 const SalesOverviewDashboard = ({
@@ -55,6 +56,22 @@ const SalesOverviewDashboard = ({
             currentUser.username ||
             currentUser.name ||
             'Commercial Leader';
+    }, [currentUser]);
+
+    const canAccessCatalogue = useMemo(() => {
+        return canAccessNavItem(
+            {
+                permissions: [
+                    'royalsoftwares.view_productservice',
+                    'royalsoftwares.add_productservice',
+                    'pos.view_product',
+                    'pos.add_product',
+                    'royalsoftwares.can_manage_pricing'
+                ],
+                roles: ['Admin', 'Sales', 'Finance']
+            },
+            currentUser
+        );
     }, [currentUser]);
 
     const userRoleBadge = useMemo(() => {
@@ -249,26 +266,28 @@ const SalesOverviewDashboard = ({
                         <FileCheck size={16} /> Review RFQs
                     </button>
 
-                    <button
-                        type="button"
-                        onClick={() => onNavigateView && onNavigateView('catalogue')}
-                        style={{
-                            background: '#ec5224',
-                            border: 'none',
-                            color: '#ffffff',
-                            padding: '0.75rem 1.15rem',
-                            borderRadius: 12,
-                            fontSize: '0.86rem',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.5rem',
-                            boxShadow: '0 4px 12px rgba(236, 82, 36, 0.3)'
-                        }}
-                    >
-                        <Layers size={16} /> Catalogue
-                    </button>
+                    {canAccessCatalogue && (
+                        <button
+                            type="button"
+                            onClick={() => onNavigateView && onNavigateView('catalogue')}
+                            style={{
+                                background: '#ec5224',
+                                border: 'none',
+                                color: '#ffffff',
+                                padding: '0.75rem 1.15rem',
+                                borderRadius: 12,
+                                fontSize: '0.86rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                                boxShadow: '0 4px 12px rgba(236, 82, 36, 0.3)'
+                            }}
+                        >
+                            <Layers size={16} /> Catalogue
+                        </button>
+                    )}
                 </div>
             </div>
 

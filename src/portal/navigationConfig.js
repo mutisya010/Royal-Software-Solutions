@@ -200,7 +200,19 @@ export const MODULE_NAV_CONFIG = [
                 items: [
                     { label: 'Activities & Follow-ups', view: 'activities', icon: Clock },
                     { label: 'Communication History', view: 'communications', icon: MessageSquare },
-                    { label: 'Products & Services', view: 'catalogue', icon: Layers }
+                    { 
+                        label: 'Products & Services', 
+                        view: 'catalogue', 
+                        icon: Layers,
+                        permissions: [
+                            'royalsoftwares.view_productservice',
+                            'royalsoftwares.add_productservice',
+                            'pos.view_product',
+                            'pos.add_product',
+                            'royalsoftwares.can_manage_pricing'
+                        ],
+                        roles: ['Admin', 'Sales', 'Finance']
+                    }
                 ]
             }
         ]
@@ -415,4 +427,39 @@ export const isStaffUser = (user) => {
     if (!user) return false;
     return !!(user.is_superuser || user.is_staff || isAdminUser(user));
 };
+
+/**
+ * Evaluates whether a user can see/access a specific sub-navigation item within a module.
+ * If the item specifies permissions or roles, the user must satisfy them (unless superuser or admin).
+ * If the item specifies neither, it inherits the module-level access.
+ */
+export const canAccessNavItem = (item, user) => {
+    if (!item) return false;
+    if (!user) return false;
+    if (user.is_superuser) return true;
+    if (isAdminUser(user)) return true;
+
+    // 1. Check explicit item-level permissions
+    if (item.permissions && item.permissions.length > 0) {
+        const userPermissions = Array.isArray(user.permissions) ? user.permissions : [];
+        const hasPerm = item.permissions.some(p => userPermissions.includes(p));
+        if (hasPerm) return true;
+        return false;
+    }
+
+    // 2. Check explicit item-level roles
+    if (item.roles && item.roles.length > 0) {
+        const userRoles = Array.isArray(user.roles) 
+            ? user.roles.map(r => String(r).toLowerCase().trim()) 
+            : (user.role ? [String(user.role).toLowerCase().trim()] : []);
+        const hasRole = item.roles.some(allowedRole => {
+            const allowed = allowedRole.toLowerCase().trim();
+            return userRoles.some(r => r === allowed || r.includes(allowed) || allowed.includes(r));
+        });
+        if (!hasRole) return false;
+    }
+
+    return true;
+};
+
 

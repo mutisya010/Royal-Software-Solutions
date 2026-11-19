@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
     Search,
     Plus,
@@ -10,11 +11,13 @@ import {
     Tag,
     DollarSign,
     RefreshCw,
-    X
+    X,
+    Lock
 } from 'lucide-react';
 import { apiClient } from '../services/apiClient';
+import { hasAnyPermission, isAdminUser } from './navigationConfig';
 
-const ProductsServicesCatalogue = ({ products, onRefresh, loading }) => {
+const ProductsServicesCatalogue = ({ products = [], onRefresh, loading, user }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [typeFilter, setTypeFilter] = useState('ALL');
     const [categoryFilter, setCategoryFilter] = useState('ALL');
@@ -22,6 +25,28 @@ const ProductsServicesCatalogue = ({ products, onRefresh, loading }) => {
     const [editingItem, setEditingItem] = useState(null);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState(null);
+
+    const currentUser = user || (apiClient?.auth ? apiClient.auth.getCurrentUser() : null);
+
+    const canCreate = useMemo(() => {
+        if (!currentUser) return false;
+        if (currentUser.is_superuser || isAdminUser(currentUser)) return true;
+        return hasAnyPermission(currentUser, [
+            'royalsoftwares.add_productservice',
+            'pos.add_product',
+            'royalsoftwares.can_manage_pricing'
+        ]);
+    }, [currentUser]);
+
+    const canEdit = useMemo(() => {
+        if (!currentUser) return false;
+        if (currentUser.is_superuser || isAdminUser(currentUser)) return true;
+        return hasAnyPermission(currentUser, [
+            'royalsoftwares.change_productservice',
+            'pos.change_product',
+            'royalsoftwares.can_manage_pricing'
+        ]);
+    }, [currentUser]);
 
     // Form state
     const [form, setForm] = useState({
@@ -38,9 +63,10 @@ const ProductsServicesCatalogue = ({ products, onRefresh, loading }) => {
         is_active: true
     });
 
-    const categories = Array.from(new Set(products.map(p => p.category).filter(Boolean)));
+    const safeProducts = Array.isArray(products) ? products : [];
+    const categories = Array.from(new Set(safeProducts.map(p => p.category).filter(Boolean)));
 
-    const filtered = products.filter(item => {
+    const filtered = safeProducts.filter(item => {
         const matchesSearch =
             (item.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
             (item.item_code || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -51,6 +77,10 @@ const ProductsServicesCatalogue = ({ products, onRefresh, loading }) => {
     });
 
     const openCreateModal = () => {
+        if (!canCreate) {
+            alert('You do not have permission to add new products or services.');
+            return;
+        }
         setEditingItem(null);
         setForm({
             item_code: `SKU-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -70,6 +100,10 @@ const ProductsServicesCatalogue = ({ products, onRefresh, loading }) => {
     };
 
     const openEditModal = (item) => {
+        if (!canEdit) {
+            alert('You do not have permission to modify products or services.');
+            return;
+        }
         setEditingItem(item);
         setForm({
             item_code: item.item_code || '',
@@ -116,6 +150,7 @@ const ProductsServicesCatalogue = ({ products, onRefresh, loading }) => {
     };
 
     const handleToggleActive = async (item) => {
+        if (!canEdit) return;
         try {
             await apiClient.put(`/api/v1/royalsoftwares/products/${item.id}/`, {
                 is_active: !item.is_active
@@ -140,13 +175,15 @@ const ProductsServicesCatalogue = ({ products, onRefresh, loading }) => {
                 </div>
 
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                    <button
-                        onClick={openCreateModal}
-                        className="btn-primary"
-                        style={{ padding: '10px 18px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '8px', background: '#0f766e', border: 'none', color: '#fff', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}
-                    >
-                        <Plus size={16} /> New Catalogue Item
-                    </button>
+                    {canCreate && (
+                        <button
+                            onClick={openCreateModal}
+                            className="btn-primary"
+                            style={{ padding: '10px 18px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '8px', background: '#0f766e', border: 'none', color: '#fff', fontWeight: 600, fontSize: '13px', cursor: 'pointer', boxShadow: '0 2px 6px rgba(15, 118, 110, 0.25)' }}
+                        >
+                            <Plus size={16} /> New Catalogue Item
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -160,7 +197,7 @@ const ProductsServicesCatalogue = ({ products, onRefresh, loading }) => {
                             placeholder="Search catalogue..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            style={{ padding: '6px 12px 6px 32px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', width: '220px' }}
+                            style={{ padding: '6px 12px 6px 32px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', width: '220px', outline: 'none' }}
                         />
                     </div>
 
@@ -189,7 +226,7 @@ const ProductsServicesCatalogue = ({ products, onRefresh, loading }) => {
                         <select
                             value={categoryFilter}
                             onChange={(e) => setCategoryFilter(e.target.value)}
-                            style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '12px', background: '#ffffff', color: '#475569' }}
+                            style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '12px', background: '#ffffff', color: '#475569', outline: 'none' }}
                         >
                             <option value="ALL">All Categories</option>
                             {categories.map(c => <option key={c} value={c}>{c}</option>)}
@@ -220,8 +257,8 @@ const ProductsServicesCatalogue = ({ products, onRefresh, loading }) => {
                     <tbody>
                         {filtered.length === 0 ? (
                             <tr>
-                                <td colSpan="8" style={{ padding: '30px', textAlign: 'center', color: '#94a3b8' }}>
-                                    No catalogue items match your criteria. Click "New Catalogue Item" to register products and services.
+                                <td colSpan="8" style={{ padding: '36px', textAlign: 'center', color: '#94a3b8' }}>
+                                    {loading ? 'Loading catalogue items...' : 'No catalogue items match your criteria.'}
                                 </td>
                             </tr>
                         ) : (
@@ -263,7 +300,7 @@ const ProductsServicesCatalogue = ({ products, onRefresh, loading }) => {
                                         <span
                                             onClick={() => handleToggleActive(item)}
                                             style={{
-                                                cursor: 'pointer',
+                                                cursor: canEdit ? 'pointer' : 'default',
                                                 fontSize: '11px',
                                                 fontWeight: 700,
                                                 padding: '2px 8px',
@@ -271,19 +308,24 @@ const ProductsServicesCatalogue = ({ products, onRefresh, loading }) => {
                                                 background: item.is_active ? '#dcfce7' : '#fee2e2',
                                                 color: item.is_active ? '#15803d' : '#b91c1c'
                                             }}
-                                            title="Click to toggle status"
+                                            title={canEdit ? 'Click to toggle status' : 'Status'}
                                         >
                                             {item.is_active ? 'Active' : 'Inactive'}
                                         </span>
                                     </td>
                                     <td style={{ padding: '12px 15px', textAlign: 'right' }}>
-                                        <button
-                                            onClick={() => openEditModal(item)}
-                                            style={{ background: '#f1f5f9', border: '1px solid #e2e8f0', padding: '5px 8px', borderRadius: '6px', cursor: 'pointer', color: '#475569' }}
-                                            title="Edit Catalogue Item"
-                                        >
-                                            <Edit3 size={13} />
-                                        </button>
+                                        {canEdit ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => openEditModal(item)}
+                                                style={{ background: '#f1f5f9', border: '1px solid #e2e8f0', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', color: '#475569' }}
+                                                title="Edit Catalogue Item"
+                                            >
+                                                <Edit3 size={13} />
+                                            </button>
+                                        ) : (
+                                            <span style={{ fontSize: '12px', color: '#cbd5e1' }}>—</span>
+                                        )}
                                     </td>
                                 </tr>
                             ))
@@ -292,82 +334,172 @@ const ProductsServicesCatalogue = ({ products, onRefresh, loading }) => {
                 </table>
             </div>
 
-            {/* Create / Edit Item Modal */}
-            {showModal && (
-                <div className="doc-modal-overlay" onClick={() => setShowModal(false)}>
-                    <div className="doc-modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px' }}>
-                        <div className="doc-modal-header">
-                            <h3 style={{ margin: 0, fontSize: '1.15rem', color: '#0f172a' }}>
-                                {editingItem ? 'Edit Catalogue Item' : 'New Catalogue Item'}
-                            </h3>
+            {/* Create / Edit Item Modal — Escaped to document.body via Portal to prevent container clipping */}
+            {showModal && typeof document !== 'undefined' && createPortal(
+                <div
+                    style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        width: '100vw',
+                        height: '100vh',
+                        backgroundColor: 'rgba(15, 23, 42, 0.65)',
+                        backdropFilter: 'blur(4px)',
+                        WebkitBackdropFilter: 'blur(4px)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 999999,
+                        padding: '1.5rem',
+                        boxSizing: 'border-box'
+                    }}
+                    onClick={() => setShowModal(false)}
+                >
+                    <div
+                        style={{
+                            backgroundColor: '#ffffff',
+                            borderRadius: '16px',
+                            width: '100%',
+                            maxWidth: '620px',
+                            maxHeight: '90vh',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
+                            overflow: 'hidden',
+                            border: '1px solid #e2e8f0',
+                            position: 'relative'
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Modal Header */}
+                        <div style={{
+                            padding: '20px 24px',
+                            borderBottom: '1px solid #e2e8f0',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            backgroundColor: '#f8fafc'
+                        }}>
+                            <div>
+                                <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#0f172a' }}>
+                                    {editingItem ? 'Edit Catalogue Item' : 'New Catalogue Item'}
+                                </h3>
+                                <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#64748b' }}>
+                                    {editingItem ? 'Update deliverable parameters and billing rate' : 'Register a new service deliverable or software product'}
+                                </p>
+                            </div>
                             <button
+                                type="button"
                                 onClick={() => setShowModal(false)}
-                                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b' }}
+                                style={{
+                                    background: '#f1f5f9',
+                                    border: '1px solid #cbd5e1',
+                                    borderRadius: '8px',
+                                    width: '32px',
+                                    height: '32px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    cursor: 'pointer',
+                                    color: '#64748b',
+                                    transition: 'all 0.2s'
+                                }}
                             >
-                                <X size={20} />
+                                <X size={18} />
                             </button>
                         </div>
 
-                        <form onSubmit={handleSubmit}>
-                            <div className="doc-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        {/* Modal Form */}
+                        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', margin: 0 }}>
+                            <div style={{
+                                padding: '24px',
+                                overflowY: 'auto',
+                                maxHeight: 'calc(90vh - 145px)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '16px'
+                            }}>
                                 {error && (
-                                    <div style={{ padding: '0.65rem 1rem', background: '#fee2e2', color: '#b91c1c', borderRadius: 8, fontSize: '0.85rem' }}>
-                                        {error}
+                                    <div style={{
+                                        padding: '10px 14px',
+                                        background: '#fee2e2',
+                                        color: '#b91c1c',
+                                        borderRadius: '8px',
+                                        fontSize: '13px',
+                                        border: '1px solid #fecaca',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px'
+                                    }}>
+                                        <XCircle size={16} />
+                                        <span>{error}</span>
                                     </div>
                                 )}
 
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem' }}>
-                                    <div className="prop-form-group">
-                                        <label>Item / SKU Code</label>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '14px' }}>
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                                            Item / SKU Code
+                                        </label>
                                         <input
                                             type="text"
                                             value={form.item_code}
                                             onChange={(e) => setForm(prev => ({ ...prev, item_code: e.target.value }))}
-                                            className="prop-input"
+                                            style={{ width: '100%', boxSizing: 'border-box', padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none' }}
                                             placeholder="e.g. ERP-CORE"
                                         />
                                     </div>
-                                    <div className="prop-form-group">
-                                        <label>Deliverable / Product Name</label>
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                                            Deliverable / Product Name *
+                                        </label>
                                         <input
                                             type="text"
                                             value={form.name}
                                             onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
-                                            className="prop-input"
                                             required
+                                            style={{ width: '100%', boxSizing: 'border-box', padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none' }}
                                             placeholder="e.g. Custom ERP Architecture"
                                         />
                                     </div>
                                 </div>
 
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
-                                    <div className="prop-form-group">
-                                        <label>Type</label>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' }}>
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                                            Type
+                                        </label>
                                         <select
                                             value={form.type}
                                             onChange={(e) => setForm(prev => ({ ...prev, type: e.target.value }))}
-                                            className="prop-input"
+                                            style={{ width: '100%', boxSizing: 'border-box', padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', background: '#fff', outline: 'none' }}
                                         >
                                             <option value="SERVICE">Service</option>
                                             <option value="PRODUCT">Product</option>
                                         </select>
                                     </div>
-                                    <div className="prop-form-group">
-                                        <label>Category</label>
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                                            Category
+                                        </label>
                                         <input
                                             type="text"
                                             value={form.category}
                                             onChange={(e) => setForm(prev => ({ ...prev, category: e.target.value }))}
-                                            className="prop-input"
+                                            style={{ width: '100%', boxSizing: 'border-box', padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none' }}
                                             placeholder="e.g. Cloud, ERP"
                                         />
                                     </div>
-                                    <div className="prop-form-group">
-                                        <label>Pricing Model</label>
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                                            Pricing Model
+                                        </label>
                                         <select
                                             value={form.pricing_model}
                                             onChange={(e) => setForm(prev => ({ ...prev, pricing_model: e.target.value }))}
-                                            className="prop-input"
+                                            style={{ width: '100%', boxSizing: 'border-box', padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', background: '#fff', outline: 'none' }}
                                         >
                                             <option value="FIXED">Fixed Price</option>
                                             <option value="HOURLY">Hourly Rate</option>
@@ -377,80 +509,116 @@ const ProductsServicesCatalogue = ({ products, onRefresh, loading }) => {
                                     </div>
                                 </div>
 
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                                    <div className="prop-form-group">
-                                        <label>Default Rate (KES)</label>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                                            Default Rate (KES) *
+                                        </label>
                                         <input
                                             type="number"
                                             step="0.01"
                                             value={form.price}
                                             onChange={(e) => setForm(prev => ({ ...prev, price: e.target.value }))}
-                                            className="prop-input"
                                             required
+                                            style={{ width: '100%', boxSizing: 'border-box', padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none' }}
                                             placeholder="0.00"
                                         />
                                     </div>
-                                    <div className="prop-form-group">
-                                        <label>Unit of Measure</label>
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                                            Unit of Measure
+                                        </label>
                                         <input
                                             type="text"
                                             value={form.unit_of_measure}
                                             onChange={(e) => setForm(prev => ({ ...prev, unit_of_measure: e.target.value }))}
-                                            className="prop-input"
+                                            style={{ width: '100%', boxSizing: 'border-box', padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none' }}
                                             placeholder="e.g. Hour, Month, Deliverable"
                                         />
                                     </div>
                                 </div>
 
-                                <div className="prop-form-group">
-                                    <label>Scope Description (Appears on Quotations)</label>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                                        Scope Description (Appears on Quotations & Proposals)
+                                    </label>
                                     <textarea
                                         value={form.description}
                                         onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
-                                        rows={2}
-                                        className="prop-input"
-                                        style={{ resize: 'vertical' }}
+                                        rows={3}
+                                        style={{ width: '100%', boxSizing: 'border-box', padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', resize: 'vertical', outline: 'none' }}
                                         placeholder="Clear outline of services and deliverables provided..."
                                     />
                                 </div>
 
-                                <div className="prop-form-group">
-                                    <label>Internal Notes & Cost Basis (Staff Only)</label>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                                        Internal Notes & Cost Basis (Commercial Staff Only)
+                                    </label>
                                     <textarea
                                         value={form.internal_notes}
                                         onChange={(e) => setForm(prev => ({ ...prev, internal_notes: e.target.value }))}
                                         rows={2}
-                                        className="prop-input"
-                                        style={{ resize: 'vertical' }}
-                                        placeholder="Estimated developer hours, third-party API costs..."
+                                        style={{ width: '100%', boxSizing: 'border-box', padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', resize: 'vertical', outline: 'none' }}
+                                        placeholder="Estimated developer hours, cloud resources, third-party API costs..."
                                     />
                                 </div>
                             </div>
 
-                            <div className="doc-modal-footer">
+                            {/* Modal Footer */}
+                            <div style={{
+                                padding: '16px 24px',
+                                borderTop: '1px solid #e2e8f0',
+                                display: 'flex',
+                                justifyContent: 'flex-end',
+                                gap: '12px',
+                                backgroundColor: '#f8fafc'
+                            }}>
                                 <button
                                     type="button"
                                     onClick={() => setShowModal(false)}
-                                    className="btn-secondary-outline"
+                                    style={{
+                                        padding: '9px 18px',
+                                        borderRadius: '8px',
+                                        border: '1px solid #cbd5e1',
+                                        background: '#ffffff',
+                                        color: '#475569',
+                                        fontWeight: 600,
+                                        fontSize: '13px',
+                                        cursor: 'pointer'
+                                    }}
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={saving}
-                                    className="btn-primary-teal"
+                                    style={{
+                                        padding: '9px 22px',
+                                        borderRadius: '8px',
+                                        border: 'none',
+                                        background: '#0f766e',
+                                        color: '#ffffff',
+                                        fontWeight: 700,
+                                        fontSize: '13px',
+                                        cursor: saving ? 'not-allowed' : 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        boxShadow: '0 2px 6px rgba(15, 118, 110, 0.25)'
+                                    }}
                                 >
-                                    {saving ? <RefreshCw size={14} className="spin-icon" /> : null}
+                                    {saving && <RefreshCw size={14} className="spin-icon" />}
                                     {saving ? 'Saving...' : editingItem ? 'Save Changes' : 'Create Item'}
                                 </button>
                             </div>
                         </form>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );
 };
 
 export default ProductsServicesCatalogue;
-
