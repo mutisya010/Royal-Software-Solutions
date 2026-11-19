@@ -22,6 +22,9 @@ const MyDayView = ({ onSelectTask }) => {
 
     useEffect(() => {
         loadMyDay();
+        const onTaskUpdated = () => loadMyDay();
+        window.addEventListener('planner:taskUpdated', onTaskUpdated);
+        return () => window.removeEventListener('planner:taskUpdated', onTaskUpdated);
     }, []);
 
     const loadMyDay = async () => {

@@ -76,7 +76,7 @@ const PlannerHub = () => {
     };
 
     const handleTaskSaved = () => {
-        // Can trigger data reload or event bus
+        window.dispatchEvent(new CustomEvent('planner:taskUpdated'));
     };
 
     return (

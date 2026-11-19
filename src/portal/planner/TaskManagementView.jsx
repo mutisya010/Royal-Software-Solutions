@@ -2,12 +2,13 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
     List, Columns, Plus, Search, Filter, CheckCircle2,
     Clock, AlertTriangle, User, Calendar, Folder, MoreHorizontal,
-    CheckSquare, RefreshCw
+    CheckSquare, RefreshCw, Lock
 } from 'lucide-react';
 import { apiClient } from '../../services/apiClient';
 import ListPageHeader from '../shared/ListPageHeader';
 import ListFilterBar from '../shared/ListFilterBar';
 import StatusPillBadge from '../shared/StatusPillBadge';
+import { getPlannerPerms } from './plannerHelpers';
 
 const KANBAN_COLUMNS = [
     { id: 'NOT_STARTED', title: 'Not Started', color: '#64748b' },
@@ -17,17 +18,29 @@ const KANBAN_COLUMNS = [
 ];
 
 const TaskManagementView = ({ onSelectTask, onOpenCreateTask }) => {
+    const [currentUser, setCurrentUser] = useState(() => apiClient.auth.getCurrentUser());
+    const perms = useMemo(() => getPlannerPerms(currentUser), [currentUser]);
+
     const [tasks, setTasks] = useState([]);
     const [loading, setLoading] = useState(true);
     const [displayMode, setDisplayMode] = useState('list'); // 'list' | 'kanban'
-    const [activeFilter, setActiveFilter] = useState('ALL');
+    const [activeFilter, setActiveFilter] = useState(perms.canViewAll ? 'ALL' : 'MY_TASKS');
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedAssignee, setSelectedAssignee] = useState('');
     const [users, setUsers] = useState([]);
 
     useEffect(() => {
-        loadUsers();
-    }, []);
+        let isMounted = true;
+        apiClient.auth.getProfile()
+            .then(profile => {
+                if (isMounted && profile) setCurrentUser(profile);
+            })
+            .catch(() => {});
+        if (perms.canViewAll) {
+            loadUsers();
+        }
+        return () => { isMounted = false; };
+    }, [perms.canViewAll]);
 
     const loadUsers = async () => {
         try {
@@ -45,24 +58,32 @@ const TaskManagementView = ({ onSelectTask, onOpenCreateTask }) => {
 
     useEffect(() => {
         loadTasks();
-    }, [activeFilter, selectedAssignee]);
+        const onTaskUpdated = () => loadTasks();
+        window.addEventListener('planner:taskUpdated', onTaskUpdated);
+        return () => window.removeEventListener('planner:taskUpdated', onTaskUpdated);
+    }, [activeFilter, selectedAssignee, perms.canViewAll]);
 
     const loadTasks = async () => {
         try {
             setLoading(true);
             const params = {};
-            if (activeFilter === 'MY_TASKS') params.view = 'my-tasks';
-            else if (activeFilter === 'ASSIGNED_BY_ME') params.view = 'assigned-by-me';
-            else if (activeFilter === 'TEAM') params.view = 'team';
-            else if (activeFilter === 'OVERDUE') params.view = 'overdue';
-            else if (activeFilter === 'COMPLETED') params.view = 'completed';
+            if (!perms.canViewAll) {
+                // Non-privileged users are strictly restricted to their own tasks
+                params.view = activeFilter === 'OVERDUE' ? 'overdue' : (activeFilter === 'COMPLETED' ? 'completed' : 'my-tasks');
+            } else {
+                if (activeFilter === 'MY_TASKS') params.view = 'my-tasks';
+                else if (activeFilter === 'ASSIGNED_BY_ME') params.view = 'assigned-by-me';
+                else if (activeFilter === 'TEAM') params.view = 'team';
+                else if (activeFilter === 'OVERDUE') params.view = 'overdue';
+                else if (activeFilter === 'COMPLETED') params.view = 'completed';
+            }
 
-            if (selectedAssignee) {
+            if (selectedAssignee && perms.canViewAll) {
                 params.assigned_to = selectedAssignee;
             }
 
             const data = await apiClient.planner.tasks.list(params);
-            setTasks(data);
+            setTasks(data || []);
         } catch (err) {
             console.error('Failed to load tasks:', err);
         } finally {
@@ -80,17 +101,26 @@ const TaskManagementView = ({ onSelectTask, onOpenCreateTask }) => {
         }
     };
 
-    const filterPills = useMemo(() => [
-        { id: 'ALL', label: 'All Tasks', count: tasks.length },
-        { id: 'MY_TASKS', label: 'My Tasks', count: tasks.filter(t => t.assigned_to || t.is_personal).length },
-        { id: 'TEAM', label: 'Team Tasks', count: tasks.filter(t => !t.is_personal).length },
-        { id: 'OVERDUE', label: 'Overdue', count: tasks.filter(t => t.due_date && new Date(t.due_date) < new Date() && t.status !== 'COMPLETED').length },
-        { id: 'COMPLETED', label: 'Completed', count: tasks.filter(t => t.status === 'COMPLETED').length }
-    ], [tasks]);
+    const filterPills = useMemo(() => {
+        if (!perms.canViewAll) {
+            return [
+                { id: 'MY_TASKS', label: 'My Tasks', count: tasks.length },
+                { id: 'OVERDUE', label: 'Overdue', count: tasks.filter(t => t.due_date && new Date(t.due_date) < new Date() && t.status !== 'COMPLETED').length },
+                { id: 'COMPLETED', label: 'Completed', count: tasks.filter(t => t.status === 'COMPLETED').length }
+            ];
+        }
+        return [
+            { id: 'ALL', label: 'All Tasks', count: tasks.length },
+            { id: 'MY_TASKS', label: 'My Tasks', count: tasks.filter(t => t.assigned_to || t.is_personal).length },
+            { id: 'TEAM', label: 'Team Tasks', count: tasks.filter(t => !t.is_personal).length },
+            { id: 'OVERDUE', label: 'Overdue', count: tasks.filter(t => t.due_date && new Date(t.due_date) < new Date() && t.status !== 'COMPLETED').length },
+            { id: 'COMPLETED', label: 'Completed', count: tasks.filter(t => t.status === 'COMPLETED').length }
+        ];
+    }, [tasks, perms.canViewAll]);
 
     const filteredTasks = useMemo(() => {
         let list = tasks;
-        if (selectedAssignee) {
+        if (selectedAssignee && perms.canViewAll) {
             list = list.filter(t => String(t.assigned_to || t.assigned_to_details?.id) === String(selectedAssignee));
         }
         const q = searchQuery.toLowerCase().trim();
@@ -102,7 +132,7 @@ const TaskManagementView = ({ onSelectTask, onOpenCreateTask }) => {
             (t.project_name || '').toLowerCase().includes(q) ||
             (t.assigned_to_details?.full_name || '').toLowerCase().includes(q)
         );
-    }, [tasks, searchQuery, selectedAssignee]);
+    }, [tasks, searchQuery, selectedAssignee, perms.canViewAll]);
 
     return (
         <div className="planner-container animations-fade-in">
@@ -138,49 +168,51 @@ const TaskManagementView = ({ onSelectTask, onOpenCreateTask }) => {
                 onFilterChange={setActiveFilter}
             />
 
-            {/* Staff Assignee Toolbar Filter */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginTop: '12px', marginBottom: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <User size={15} color="#475569" />
-                    <span style={{ fontSize: '13px', fontWeight: 600, color: '#475569' }}>Staff Assignee:</span>
-                    <select
-                        value={selectedAssignee}
-                        onChange={(e) => setSelectedAssignee(e.target.value)}
-                        style={{
-                            padding: '6px 12px',
-                            borderRadius: '6px',
-                            border: '1px solid #cbd5e1',
-                            fontSize: '13px',
-                            background: '#ffffff',
-                            color: '#1e293b'
-                        }}
-                    >
-                        <option value="">All Team Members ({users.length})</option>
-                        {users.map(u => (
-                            <option key={u.id} value={u.id}>
-                                {u.full_name} — {u.designation || u.role} ({u.department || 'Operations'})
-                            </option>
-                        ))}
-                    </select>
-                    {selectedAssignee && (
-                        <button
-                            type="button"
-                            onClick={() => setSelectedAssignee('')}
+            {/* Staff Assignee Toolbar Filter: Strictly available to privileged administrators */}
+            {perms.canViewAll && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginTop: '12px', marginBottom: '16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <User size={15} color="#475569" />
+                        <span style={{ fontSize: '13px', fontWeight: 600, color: '#475569' }}>Staff Assignee:</span>
+                        <select
+                            value={selectedAssignee}
+                            onChange={(e) => setSelectedAssignee(e.target.value)}
                             style={{
-                                background: '#f1f5f9',
+                                padding: '6px 12px',
+                                borderRadius: '6px',
                                 border: '1px solid #cbd5e1',
-                                borderRadius: '4px',
-                                padding: '4px 8px',
-                                fontSize: '11px',
-                                cursor: 'pointer',
-                                color: '#475569'
+                                fontSize: '13px',
+                                background: '#ffffff',
+                                color: '#1e293b'
                             }}
                         >
-                            Clear
-                        </button>
-                    )}
+                            <option value="">All Team Members ({users.length})</option>
+                            {users.map(u => (
+                                <option key={u.id} value={u.id}>
+                                    {u.full_name} — {u.designation || u.role} ({u.department || 'Operations'})
+                                </option>
+                            ))}
+                        </select>
+                        {selectedAssignee && (
+                            <button
+                                type="button"
+                                onClick={() => setSelectedAssignee('')}
+                                style={{
+                                    background: '#f1f5f9',
+                                    border: '1px solid #cbd5e1',
+                                    borderRadius: '4px',
+                                    padding: '4px 8px',
+                                    fontSize: '11px',
+                                    cursor: 'pointer',
+                                    color: '#475569'
+                                }}
+                            >
+                                Clear
+                            </button>
+                        )}
+                    </div>
                 </div>
-            </div>
+            )}
 
             {loading ? (
                 <div style={{ padding: '60px', textAlign: 'center', color: '#64748b' }}>
