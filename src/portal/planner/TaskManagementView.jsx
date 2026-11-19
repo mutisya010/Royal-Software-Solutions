@@ -86,6 +86,7 @@ const TaskManagementView = ({ onSelectTask, onOpenCreateTask }) => {
             setTasks(data || []);
         } catch (err) {
             console.error('Failed to load tasks:', err);
+            setTasks([]);
         } finally {
             setLoading(false);
         }

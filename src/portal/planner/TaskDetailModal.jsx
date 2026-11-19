@@ -111,7 +111,10 @@ const TaskDetailModal = ({
         setError(null);
     }, [task, isOpen, currentUser?.id]);
 
-    if (!isOpen) return null;
+    const activeProjectObj = useMemo(() => {
+        if (!projectId) return null;
+        return projects.find(p => String(p.id) === String(projectId));
+    }, [projectId, projects]);
 
     const handleSave = async (e) => {
         if (e) e.preventDefault();
@@ -224,13 +227,10 @@ const TaskDetailModal = ({
         }
     };
 
-    const activeProjectObj = useMemo(() => {
-        if (!projectId) return null;
-        return projects.find(p => String(p.id) === String(projectId));
-    }, [projectId, projects]);
-
     const completedChecklistsCount = checklists.filter(c => c.is_done).length;
     const completedSubtasksCount = subtasks.filter(s => s.is_completed).length;
+
+    if (!isOpen) return null;
 
     return (
         <div className="planner-modal-overlay" onClick={onClose}>
