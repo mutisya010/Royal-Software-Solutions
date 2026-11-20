@@ -297,7 +297,7 @@ export const MODULE_NAV_CONFIG = [
         ]
     },
     {
-        id: 'access',
+        id: 'users-roles',
         label: 'Users & Roles',
         icon: ShieldCheck,
         path: '/portal/admin/users-roles',
@@ -313,8 +313,18 @@ export const MODULE_NAV_CONFIG = [
             {
                 title: 'ACCESS CONTROL',
                 items: [
-                    { label: 'System Users', view: 'users', icon: UserCog },
-                    { label: 'Roles & Permissions', view: 'roles', icon: KeyRound }
+                    { 
+                        label: 'System Users', 
+                        view: 'users', 
+                        icon: UserCog,
+                        permissions: ['auth.view_user', 'auth.add_user', 'auth.change_user', 'accounts.can_manage_users']
+                    },
+                    { 
+                        label: 'Roles & Permissions', 
+                        view: 'roles', 
+                        icon: KeyRound,
+                        permissions: ['accounts.view_companyrole', 'accounts.add_companyrole', 'accounts.change_companyrole', 'accounts.can_manage_roles']
+                    }
                 ]
             }
         ]

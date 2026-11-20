@@ -10,7 +10,7 @@ import {
     Sliders,
     HelpCircle
 } from 'lucide-react';
-import { canAccessNavItem } from './navigationConfig';
+import { canAccessNavItem, MODULE_NAV_CONFIG, canAccessModule } from './navigationConfig';
 import { apiClient } from '../services/apiClient';
 
 /**
@@ -32,6 +32,8 @@ const SecondarySidebar = ({
     }
 
     const currentUser = user || (apiClient?.auth ? apiClient.auth.getCurrentUser() : null);
+    const settingsModule = MODULE_NAV_CONFIG.find(m => m.id === 'settings');
+    const canOpenSettings = settingsModule ? canAccessModule(settingsModule, currentUser) : false;
     const ModuleIcon = module.icon;
     const currentView = activeView || 'dashboard';
 
@@ -154,12 +156,14 @@ const SecondarySidebar = ({
                     </p>
                 </div>
 
-                <div className="secondary-bottom-links">
-                    <Link to="/portal/admin/settings" className="secondary-bottom-link">
-                        <Sliders size={16} />
-                        <span>Preferences</span>
-                    </Link>
-                </div>
+                {canOpenSettings && (
+                    <div className="secondary-bottom-links">
+                        <Link to="/portal/admin/settings" className="secondary-bottom-link">
+                            <Sliders size={16} />
+                            <span>Preferences</span>
+                        </Link>
+                    </div>
+                )}
             </div>
 
             {/* Scoped CSS Styles for Secondary Sidebar */}

@@ -63,12 +63,22 @@ const errText = (err) => err?.message || 'Request failed';
 
 const UsersRoles = () => {
     const [searchParams, setSearchParams] = useSearchParams();
-    const view = searchParams.get('view') === 'roles' ? 'roles' : 'users';
+    const rawView = searchParams.get('view') === 'roles' ? 'roles' : 'users';
 
     const currentUser = apiClient.auth.getCurrentUser();
     const admin = isAdminUser(currentUser);
+    const canViewUsers = admin || hasAnyPermission(currentUser, ['auth.view_user', 'auth.add_user', 'auth.change_user', 'accounts.can_manage_users']);
     const canManageUsers = admin || hasAnyPermission(currentUser, ['accounts.can_manage_users', 'auth.add_user', 'auth.change_user']);
+
+    const canViewRoles = admin || hasAnyPermission(currentUser, ['accounts.view_companyrole', 'accounts.add_companyrole', 'accounts.change_companyrole', 'accounts.can_manage_roles']);
     const canManageRoles = admin || hasAnyPermission(currentUser, ['accounts.can_manage_roles', 'accounts.add_companyrole', 'accounts.change_companyrole']);
+
+    // Auto-resolve active view based on permissions
+    const view = (rawView === 'users' && !canViewUsers && canViewRoles)
+        ? 'roles'
+        : (rawView === 'roles' && !canViewRoles && canViewUsers)
+        ? 'users'
+        : rawView;
 
     const [users, setUsers] = useState([]);
     const [roles, setRoles] = useState([]);
@@ -83,14 +93,19 @@ const UsersRoles = () => {
     };
 
     const loadAll = useCallback(async () => {
+        if (!canViewUsers && !canViewRoles) {
+            setLoading(false);
+            return;
+        }
         setLoading(true);
         setError(null);
         try {
-            const [u, r, p] = await Promise.all([
-                apiClient.users.list().catch(() => []),
-                apiClient.roles.list(),
-                apiClient.permissions.list().catch(() => []),
-            ]);
+            const requests = [
+                canViewUsers ? apiClient.users.list().catch(() => []) : Promise.resolve([]),
+                canViewRoles ? apiClient.roles.list().catch(() => []) : Promise.resolve([]),
+                canViewRoles ? apiClient.permissions.list().catch(() => []) : Promise.resolve([]),
+            ];
+            const [u, r, p] = await Promise.all(requests);
             setUsers(Array.isArray(u) ? u : []);
             setRoles(Array.isArray(r) ? r : []);
             setPermissions(Array.isArray(p) ? p : []);
@@ -99,9 +114,24 @@ const UsersRoles = () => {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [canViewUsers, canViewRoles]);
 
     useEffect(() => { loadAll(); }, [loadAll]);
+
+    if (!canViewUsers && !canViewRoles) {
+        return (
+            <div className="ur-page animations-fade-in" style={{ padding: '60px 20px', textAlign: 'center' }}>
+                <style>{STYLES}</style>
+                <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#fee2e2', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                    <Lock size={28} />
+                </div>
+                <h2 style={{ margin: '0 0 8px', fontSize: 20, fontWeight: 800, color: '#0f172a' }}>Access Restricted</h2>
+                <p style={{ maxWidth: 440, margin: '0 auto', fontSize: 14, color: '#64748b', lineHeight: 1.6 }}>
+                    You do not have permission to view or manage System Users and Roles. Contact an administrator to request access.
+                </p>
+            </div>
+        );
+    }
 
     return (
         <div className="ur-page animations-fade-in">
@@ -118,8 +148,12 @@ const UsersRoles = () => {
                 </div>
                 <div className="ur-header-actions">
                     <div className="ur-segment">
-                        <button className={view === 'users' ? 'on' : ''} onClick={() => setSearchParams({ view: 'users' })}><Users size={14} /> Users</button>
-                        <button className={view === 'roles' ? 'on' : ''} onClick={() => setSearchParams({ view: 'roles' })}><ShieldCheck size={14} /> Roles</button>
+                        {canViewUsers && (
+                            <button className={view === 'users' ? 'on' : ''} onClick={() => setSearchParams({ view: 'users' })}><Users size={14} /> Users</button>
+                        )}
+                        {canViewRoles && (
+                            <button className={view === 'roles' ? 'on' : ''} onClick={() => setSearchParams({ view: 'roles' })}><ShieldCheck size={14} /> Roles</button>
+                        )}
                     </div>
                     <button className="ur-btn ghost" onClick={loadAll} title="Refresh"><RefreshCw size={14} /></button>
                 </div>

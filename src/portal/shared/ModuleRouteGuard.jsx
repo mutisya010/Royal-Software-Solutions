@@ -25,7 +25,11 @@ export const ModuleRouteGuard = ({ moduleId, children }) => {
     }
 
     // 3. Find the module configuration
-    const moduleConfig = MODULE_NAV_CONFIG.find(m => m.id === moduleId);
+    const moduleConfig = MODULE_NAV_CONFIG.find(m => 
+        m.id === moduleId || 
+        m.id === moduleId.replace('-roles', '') ||
+        (m.path && (m.path.endsWith(`/${moduleId}`) || m.path.includes(moduleId)))
+    );
 
     // If module has no restrictions or is general (e.g. dashboard/profile), allow access
     if (!moduleConfig) {

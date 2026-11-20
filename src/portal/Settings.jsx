@@ -37,7 +37,7 @@ const SettingsPage = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
-    const canManageSettings = currentUser?.is_superuser || currentUser?.is_staff || isAdminUser(currentUser) || hasPermission(currentUser, 'accounts.can_manage_settings');
+    const canManageSettings = currentUser?.is_superuser || isAdminUser(currentUser) || hasPermission(currentUser, 'accounts.can_manage_settings');
 
     const loadCompanyInfo = async () => {
         setLoading(true);
