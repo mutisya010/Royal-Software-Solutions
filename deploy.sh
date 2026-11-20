@@ -88,13 +88,23 @@ else
     export PGPORT="5433"
     SETTINGS_LABEL="Production (erp.settings_prod, Port 5433)"
 
-    # Enforce DB_PORT=5433 in backend .env if accidentally set to 5432
+    # Enforce PostgreSQL 16 port (5433) in all relevant .env files
+    echo ">>> Enforcing PostgreSQL 16 port (5433) across environment files..."
+    if [ -f ".env" ]; then
+        sed -i 's/^POSTGRES_PORT=.*/POSTGRES_PORT=5433/' .env 2>/dev/null || true
+        sed -i 's/^DB_PORT=.*/DB_PORT=5433/' .env 2>/dev/null || true
+    fi
+
+    if [ -f "${ROYAL_FE_REPO}/.env" ]; then
+        sed -i 's/^POSTGRES_PORT=.*/POSTGRES_PORT=5433/' "${ROYAL_FE_REPO}/.env" 2>/dev/null || true
+        sed -i 's/^DB_PORT=.*/DB_PORT=5433/' "${ROYAL_FE_REPO}/.env" 2>/dev/null || true
+    fi
+
     if [ -f "${BACKEND_DIR}/.env" ]; then
-        if grep -q "^DB_PORT=5432" "${BACKEND_DIR}/.env" 2>/dev/null; then
-            echo ">>> Notice: Detected DB_PORT=5432 in backend .env. Auto-updating to DB_PORT=5433 for production..."
-            sed -i 's/^DB_PORT=5432/DB_PORT=5433/' "${BACKEND_DIR}/.env" 2>/dev/null || true
-            sed -i 's/^POSTGRES_PORT=5432/POSTGRES_PORT=5433/' "${BACKEND_DIR}/.env" 2>/dev/null || true
-        fi
+        sed -i 's/^POSTGRES_PORT=.*/POSTGRES_PORT=5433/' "${BACKEND_DIR}/.env" 2>/dev/null || true
+        sed -i 's/^DB_PORT=.*/DB_PORT=5433/' "${BACKEND_DIR}/.env" 2>/dev/null || true
+        grep -q "^DB_PORT=" "${BACKEND_DIR}/.env" 2>/dev/null || echo "DB_PORT=5433" >> "${BACKEND_DIR}/.env"
+        grep -q "^POSTGRES_PORT=" "${BACKEND_DIR}/.env" 2>/dev/null || echo "POSTGRES_PORT=5433" >> "${BACKEND_DIR}/.env"
     fi
 fi
 
@@ -482,6 +492,16 @@ if [ "${TARGET}" = "all" ] || [ "${TARGET}" = "nexus" ] || [ "${TARGET}" = "fron
     if [ -d "${NEXUS_FE_REPO}" ]; then
         sync_repository "${NEXUS_FE_REPO}" "Frontend (fahari-nexus-core)" "main"
     fi
+fi
+
+# Ensure production database port (5433) is enforced after git synchronization
+if [ "${TARGET}" != "dev" ]; then
+    [ -f ".env" ] && sed -i 's/^POSTGRES_PORT=.*/POSTGRES_PORT=5433/' .env 2>/dev/null || true
+    [ -f ".env" ] && sed -i 's/^DB_PORT=.*/DB_PORT=5433/' .env 2>/dev/null || true
+    [ -f "${ROYAL_FE_REPO}/.env" ] && sed -i 's/^POSTGRES_PORT=.*/POSTGRES_PORT=5433/' "${ROYAL_FE_REPO}/.env" 2>/dev/null || true
+    [ -f "${ROYAL_FE_REPO}/.env" ] && sed -i 's/^DB_PORT=.*/DB_PORT=5433/' "${ROYAL_FE_REPO}/.env" 2>/dev/null || true
+    [ -f "${BACKEND_DIR}/.env" ] && sed -i 's/^POSTGRES_PORT=.*/POSTGRES_PORT=5433/' "${BACKEND_DIR}/.env" 2>/dev/null || true
+    [ -f "${BACKEND_DIR}/.env" ] && sed -i 's/^DB_PORT=.*/DB_PORT=5433/' "${BACKEND_DIR}/.env" 2>/dev/null || true
 fi
 
 # ------------------------------------------------------------------------------
